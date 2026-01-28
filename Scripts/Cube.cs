@@ -6,24 +6,37 @@ using TMPro;
 
 public class Cube : MonoBehaviour
 {
+    [Header("Cube Settings")]
     [SerializeField] private int value = 2;
-    [SerializeField] private TextMeshPro textMesh;
-    [SerializeField] private Rigidbody2D rb;
-    [SerializeField] private Collider2D cubeCollider;
-    [SerializeField] private SpriteRenderer spriteRenderer;
-    
-    [Header("Colors for different values")]
     [SerializeField] private Color[] valueColors;
+    [SerializeField] private float mergeCooldown = 0.3f;
+    [SerializeField] private float mergeCheckInterval = 1f;
     
+    [Header("Special Cubes")]
+    [SerializeField] private bool isSpecialCube = false;
+    [SerializeField] private SpecialCubeType specialType = SpecialCubeType.None;
+    
+    private Rigidbody2D rb;
+    private Collider2D cubeCollider;
+    private TextMeshPro textMesh;
+    private SpriteRenderer spriteRenderer;
     private bool canMerge = true;
-    private float mergeCooldown = 0.1f;
-    private static float mergeCheckInterval = 1f; // Проверка каждую секунду
     private float mergeCheckTimer = 0f;
+    
+    public enum SpecialCubeType
+    {
+        None,
+        Plus,   // x2
+        Minus,  // x/2
+        Death   // destroy
+    }
     
     public int Value => value;
     
     void Start()
     {
+        Debug.Log($"Cube Start: value={value}, isSpecialCube={isSpecialCube}, specialType={specialType}");
+        
         // Инициализируем цвета если массив пустой
         if (valueColors == null || valueColors.Length == 0)
         {
@@ -62,8 +75,6 @@ public class Cube : MonoBehaviour
             Debug.Log($"Initialized valueColors with {valueColors.Length} colors");
         }
         
-        UpdateVisual();
-        
         if (rb == null)
             rb = GetComponent<Rigidbody2D>();
             
@@ -75,6 +86,8 @@ public class Cube : MonoBehaviour
             
         if (spriteRenderer == null)
             spriteRenderer = GetComponent<SpriteRenderer>();
+        
+        UpdateVisual();
             
     }
     
@@ -94,33 +107,43 @@ public class Cube : MonoBehaviour
         // Обновляем текст
         if (textMesh != null)
         {
-            textMesh.text = value.ToString();
-        }
-        
-        // Устанавливаем цвет в зависимости от значения
-        Color targetColor = Color.white;
-        
-        Debug.Log($"UpdateVisual: value={value}, valueColors.Length={valueColors?.Length}");
-        
-        if (valueColors != null && valueColors.Length > 0)
-        {
-            int colorIndex = GetColorIndex();
-            Debug.Log($"UpdateVisual: colorIndex={colorIndex}, valueColors[colorIndex]={valueColors[colorIndex]}");
-            
-            if (colorIndex < valueColors.Length)
+            if (isSpecialCube)
             {
-                targetColor = valueColors[colorIndex];
+                textMesh.text = GetSpecialCubeText();
             }
             else
             {
-                // Если значение больше 2048, используем последний цвет
-                targetColor = valueColors[valueColors.Length - 1];
-                Debug.Log($"UpdateVisual: Using last color: {targetColor}");
+                textMesh.text = FormatValue(value);
             }
+        }
+        
+        // Устанавливаем цвет
+        Color targetColor;
+        
+        if (isSpecialCube)
+        {
+            targetColor = GetSpecialCubeColor();
         }
         else
         {
-            Debug.Log("UpdateVisual: valueColors is null or empty!");
+            // Для обычных кубиков используем цвет по умолчанию если массив пуст
+            if (valueColors != null && valueColors.Length > 0)
+            {
+                int colorIndex = GetColorIndex();
+                if (colorIndex < valueColors.Length)
+                {
+                    targetColor = valueColors[colorIndex];
+                }
+                else
+                {
+                    targetColor = valueColors[valueColors.Length - 1];
+                }
+            }
+            else
+            {
+                // Стандартный цвет если массив не инициализирован
+                targetColor = Color.white;
+            }
         }
         
         // Применяем цвет к спрайту кубика
@@ -134,11 +157,103 @@ public class Cube : MonoBehaviour
             Debug.Log("UpdateVisual: spriteRenderer is null!");
         }
         
-        // Применяем контрастный цвет к тексту
+        // Применяем цвет текста
         if (textMesh != null)
         {
-            textMesh.color = GetContrastColor(targetColor);
+            if (isSpecialCube)
+            {
+                textMesh.color = Color.white; // Белый текст для спецкубиков
+            }
+            else
+            {
+                textMesh.color = GetTextColor();
+            }
         }
+    }
+    
+    private Color GetTextColor()
+    {
+        // Системность цвета текста по группам значений
+        if (value < 1000)
+        {
+            // Маленькие значения - черный текст
+            return Color.black;
+        }
+        else if (value < 1000000)
+        {
+            // Тысячи 
+            return Color.white;
+        }
+        else if (value < 1000000000)
+        {
+            // Миллионы - фиолетовый текст
+            return Color.black;
+        }
+        else if (value < 1000000000000)
+        {
+            // Миллиарды - зеленый текст
+            return  Color.white;
+        }
+        else if (value < 1000000000000000)
+        {
+            // Триллионы - оранжевый текст
+            return Color.black;
+        }
+        else if (value < 1000000000000000000)
+        {
+            // Квадриллионы - красный текст
+            return new Color(0.9f, 0.1f, 0.1f);
+        }
+        else
+        {
+            // Квинтиллионы и выше - золотой текст
+            return new Color(1f, 0.8f, 0.2f);
+        }
+    }
+    
+    string GetSpecialCubeText()
+    {
+        if (!isSpecialCube)
+        {
+            Debug.LogWarning($"GetSpecialCubeText called on non-special cube! isSpecialCube={isSpecialCube}, specialType={specialType}");
+            return "?";
+        }
+        
+        switch (specialType)
+        {
+            case SpecialCubeType.Plus:
+                return "+";
+            case SpecialCubeType.Minus:
+                return "-";
+            case SpecialCubeType.Death:
+                return "x";
+            default:
+                Debug.LogWarning($"GetSpecialCubeText: Unknown specialType={specialType}");
+                return "?";
+        }
+    }
+    
+    Color GetSpecialCubeColor()
+    {
+        switch (specialType)
+        {
+            case SpecialCubeType.Plus:
+                return Color.green;
+            case SpecialCubeType.Minus:
+                return Color.red;
+            case SpecialCubeType.Death:
+                return new Color(0.2f, 0.2f, 0.2f); // Мрачный серый
+            default:
+                return Color.white;
+        }
+    }
+    
+    public void SetSpecialCube(SpecialCubeType type)
+    {
+        isSpecialCube = true;
+        specialType = type;
+        Debug.Log($"SetSpecialCube: type={type}, isSpecialCube={isSpecialCube}");
+        UpdateVisual();
     }
     
     private Color GetContrastColor(Color backgroundColor)
@@ -148,6 +263,24 @@ public class Cube : MonoBehaviour
         
         // Возвращаем черный текст для светлых фонов и белый для темных
         return brightness > 0.5f ? Color.black : Color.white;
+    }
+    
+    string FormatValue(int val)
+    {
+        if (val < 1000)
+            return val.ToString();
+        else if (val < 1000000)
+            return (val / 1000).ToString() + "К";
+        else if (val < 1000000000)
+            return (val / 1000000).ToString() + "М";
+        else if (val < 1000000000000)
+            return (val / 1000000000).ToString() + "Б";
+        else if (val < 1000000000000000)
+            return (val / 1000000000000).ToString() + "Т";
+        else if (val < 1000000000000000000)
+            return (val / 1000000000000000).ToString() + "Кк";
+        else
+            return (val / 1000000000000000000).ToString() + "Ккк";
     }
     
     private int GetColorIndex()
@@ -168,14 +301,86 @@ public class Cube : MonoBehaviour
     
     void OnCollisionEnter2D(Collision2D collision)
     {
-        if (!canMerge) return;
-        
         Cube otherCube = collision.gameObject.GetComponent<Cube>();
         
-        if (otherCube != null && otherCube.Value == this.value && otherCube.canMerge)
+        if (otherCube != null && otherCube != this)
         {
-            StartCoroutine(MergeCubes(otherCube));
+            // Если это спецкубик
+            if (isSpecialCube)
+            {
+                HandleSpecialCubeCollision(otherCube);
+                return;
+            }
+            
+            // Если другой кубик - спецкубик
+            if (otherCube.isSpecialCube)
+            {
+                otherCube.HandleSpecialCubeCollision(this);
+                return;
+            }
+            
+            // Обычное слияние
+            if (otherCube.Value == this.value && 
+                otherCube.canMerge && 
+                this.canMerge)
+            {
+                StartCoroutine(MergeCubes(otherCube));
+            }
         }
+    }
+    
+    void HandleSpecialCubeCollision(Cube otherCube)
+    {
+        if (!canMerge || otherCube == null || isSpecialCube == false) return;
+        
+        // Блокируем повторные срабатывания
+        canMerge = false;
+        
+        switch (specialType)
+        {
+            case SpecialCubeType.Plus:
+                // Удваиваем значение другого кубика
+                int originalValue = otherCube.value;
+                otherCube.value *= 2;
+                otherCube.UpdateVisual();
+                CubeSpawner.UpdateMaxCubeValue(otherCube.value);
+                Debug.Log($"Plus cube: {originalValue} -> {otherCube.value}");
+                break;
+                
+            case SpecialCubeType.Minus:
+                // Делим значение другого кубика на 2, но не меньше 2
+                originalValue = otherCube.value;
+                int newValue = otherCube.value / 2;
+                
+                if (newValue < 2)
+                {
+                    // Если результат меньше 2, уничтожаем кубик
+                    Debug.Log($"Minus cube: {originalValue} -> destroyed (too small)");
+                    Destroy(otherCube.gameObject);
+                }
+                else
+                {
+                    // Иначе устанавливаем новое значение
+                    otherCube.value = newValue;
+                    otherCube.UpdateVisual();
+                    Debug.Log($"Minus cube: {originalValue} -> {otherCube.value}");
+                }
+                break;
+                
+            case SpecialCubeType.Death:
+                // Уничтожаем другой кубик
+                Debug.Log($"Death cube destroyed {otherCube.value}");
+                Destroy(otherCube.gameObject);
+                break;
+                
+            default:
+                Debug.LogWarning($"Unknown special cube type: {specialType}");
+                canMerge = true; // Разблокируем если тип неизвестен
+                return;
+        }
+        
+        // Уничтожаем спецкубик после использования
+        Destroy(gameObject);
     }
     
     IEnumerator MergeCubes(Cube otherCube)
@@ -205,6 +410,9 @@ public class Cube : MonoBehaviour
     public void SetValue(int newValue)
     {
         value = newValue;
+        isSpecialCube = false;
+        specialType = SpecialCubeType.None;
+        Debug.Log($"SetValue: value={newValue}, isSpecialCube={isSpecialCube}");
         UpdateVisual();
     }
     

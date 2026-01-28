@@ -20,6 +20,11 @@ public class CubeSpawner : MonoBehaviour
     private int nextValue;
     private static int maxCubeValue = 8; // Начальный максимум
     
+    [Header("Special Cubes")]
+    [SerializeField] private int specialCubeInterval = 3; // Через сколько ходов спецкубик
+    private int spawnCounter = 0;
+    private int specialCubeIndex = 0; // 0=Plus, 1=Minus, 2=Death
+    
     void Start()
     {
         mainCamera = Camera.main;
@@ -98,20 +103,47 @@ public class CubeSpawner : MonoBehaviour
     
     void CreatePreviewCube()
     {
-        if (cubePrefab == null) return;
-        
-        // Создаем превью кубик
+        // Создаем новый превью кубик
         previewCube = Instantiate(cubePrefab, new Vector2(0, spawnYPosition), Quaternion.identity);
         
-        // Настраиваем превью
-        SetupPreviewCube();
-        
-        // Устанавливаем значение
-        Cube cubeScript = previewCube.GetComponent<Cube>();
-        if (cubeScript != null)
+        // Проверяем, будет ли следующий кубик спецкубиком
+        if (spawnCounter + 1 >= specialCubeInterval)
         {
-            cubeScript.SetValue(nextValue);
+            // Следующий будет спецкубик - настраиваем превью как спецкубик
+            Cube cubeScript = previewCube.GetComponent<Cube>();
+            if (cubeScript != null)
+            {
+                Cube.SpecialCubeType type;
+                switch (specialCubeIndex)
+                {
+                    case 0:
+                        type = Cube.SpecialCubeType.Plus;
+                        break;
+                    case 1:
+                        type = Cube.SpecialCubeType.Minus;
+                        break;
+                    case 2:
+                        type = Cube.SpecialCubeType.Death;
+                        break;
+                    default:
+                        type = Cube.SpecialCubeType.Plus;
+                        break;
+                }
+                cubeScript.SetSpecialCube(type);
+            }
         }
+        else
+        {
+            // Обычный кубик
+            Cube cubeScript = previewCube.GetComponent<Cube>();
+            if (cubeScript != null)
+            {
+                cubeScript.SetValue(nextValue);
+            }
+        }
+        
+        // Общая настройка превью для всех типов
+        SetupPreviewCube();
     }
     
     void SetupPreviewCube()
@@ -140,8 +172,8 @@ public class CubeSpawner : MonoBehaviour
         Cube cube = previewCube.GetComponent<Cube>();
         if (cube != null)
         {
-            // Можно добавить метод для отключения слияний если нужно
-            // cube.enabled = false; // Или другой способ
+            cube.enabled = false; // Временно отключаем скрипт
+            cube.enabled = true;  // Сразу включаем обратно
         }
         
         // Устанавливаем слой для превью если нужно
@@ -152,7 +184,7 @@ public class CubeSpawner : MonoBehaviour
     {
         if (previewCube == null) return;
         
-        // Сохраняем позицию и значение превью
+        // Сохраняем позицию превью
         Vector2 spawnPosition = previewCube.transform.position;
         
         // Уничтожаем превью
@@ -161,11 +193,25 @@ public class CubeSpawner : MonoBehaviour
         // Создаем падающий кубик
         GameObject fallingCube = Instantiate(cubePrefab, spawnPosition, Quaternion.identity);
         
-        // Устанавливаем значение
         Cube cubeScript = fallingCube.GetComponent<Cube>();
         if (cubeScript != null)
         {
-            cubeScript.SetValue(nextValue);
+            // Проверяем, нужно ли создать спецкубик
+            spawnCounter++;
+            Debug.Log($"Spawn counter: {spawnCounter}, interval: {specialCubeInterval}");
+            
+            if (spawnCounter >= specialCubeInterval)
+            {
+                spawnCounter = 0;
+                Debug.Log($"Creating special cube, index: {specialCubeIndex}");
+                CreateSpecialCube(cubeScript);
+            }
+            else
+            {
+                // Обычный кубик
+                Debug.Log($"Creating normal cube with value: {nextValue}");
+                cubeScript.SetValue(nextValue);
+            }
         }
         
         // Настраиваем падающий кубик
@@ -176,6 +222,37 @@ public class CubeSpawner : MonoBehaviour
         
         // Сразу создаем новое превью
         CreatePreviewCube();
+    }
+    
+    void CreateSpecialCube(Cube cubeScript)
+    {
+        // Создаем спецкубик по порядку: Plus, Minus, Death
+        Cube.SpecialCubeType type;
+        
+        switch (specialCubeIndex)
+        {
+            case 0:
+                type = Cube.SpecialCubeType.Plus;
+                break;
+            case 1:
+                type = Cube.SpecialCubeType.Minus;
+                break;
+            case 2:
+                type = Cube.SpecialCubeType.Death;
+                break;
+            default:
+                type = Cube.SpecialCubeType.Plus;
+                specialCubeIndex = 0;
+                break;
+        }
+        
+        Debug.Log($"About to call SetSpecialCube with type: {type} (index: {specialCubeIndex})");
+        cubeScript.SetSpecialCube(type);
+        
+        // Переходим к следующему спецкубику
+        specialCubeIndex = (specialCubeIndex + 1) % 3;
+        
+        Debug.Log($"Spawned special cube: {type}, next index: {specialCubeIndex}");
     }
     
     void SetupFallingCube(GameObject cube)
