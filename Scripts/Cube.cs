@@ -29,18 +29,36 @@ public class Cube : MonoBehaviour
         {
             valueColors = new Color[]
             {
-                Color.white,    // 2
-                new Color(1f, 0.8f, 0.4f), // 4
-                new Color(1f, 0.6f, 0.2f), // 8
-                new Color(1f, 0.4f, 0.1f), // 16
-                new Color(1f, 0.2f, 0.1f), // 32
-                new Color(0.8f, 0.1f, 0.1f), // 64
-                new Color(0.6f, 0.1f, 0.8f), // 128
-                new Color(0.4f, 0.1f, 1f), // 256
-                new Color(0.2f, 0.1f, 1f), // 512
-                new Color(0.1f, 0.1f, 1f), // 1024
-                new Color(0.1f, 0f, 0.8f)  // 2048
+                // 2 – 64 (яркий старт)
+                new Color(0.95f, 0.85f, 0.35f), // 2  — тёплый жёлтый
+                new Color(0.35f, 0.75f, 0.95f), // 4  — холодный голубой
+                new Color(0.95f, 0.55f, 0.30f), // 8  — оранжевый
+                new Color(0.45f, 0.55f, 0.95f), // 16 — синий
+                new Color(0.90f, 0.35f, 0.25f), // 32 — красно-оранжевый
+                new Color(0.35f, 0.85f, 0.70f), // 64 — мятный
+
+                // 128 – 2048
+                new Color(0.95f, 0.75f, 0.40f), // 128 — янтарный
+                new Color(0.55f, 0.45f, 0.95f), // 256 — фиолетово-синий
+                new Color(0.90f, 0.45f, 0.65f), // 512 — розово-коралловый
+                new Color(0.30f, 0.75f, 0.95f), // 1024 — небесный
+                new Color(0.85f, 0.30f, 0.55f), // 2048 — малиновый
+
+                // 4096 – 65536 (более «редкие» значения)
+                new Color(0.35f, 0.95f, 0.60f), // 4096 — салатово-зелёный
+                new Color(0.65f, 0.35f, 0.95f), // 8192 — фиолетовый
+                new Color(0.95f, 0.55f, 0.20f), // 16384 — насыщенный оранжевый
+                new Color(0.20f, 0.65f, 0.95f), // 32768 — холодный синий
+                new Color(0.95f, 0.30f, 0.30f), // 65536 — красный
+
+                // 131072+ (почти «легендарные»)
+                new Color(0.30f, 0.90f, 0.80f), // 131072 — бирюзовый
+                new Color(0.80f, 0.30f, 0.95f), // 262144 — неоновый фиолетовый
+                new Color(0.95f, 0.85f, 0.25f), // 524288 — золото
+                new Color(0.25f, 0.45f, 0.95f), // 1048576 — глубокий синий
+                new Color(0.95f, 0.25f, 0.70f), // 2097152 — яркий розовый
             };
+            
             Debug.Log($"Initialized valueColors with {valueColors.Length} colors");
         }
         
@@ -169,6 +187,9 @@ public class Cube : MonoBehaviour
         // Удваиваем значение
         value *= 2;
         UpdateVisual();
+        
+        // Обновляем максимальное значение в спаунере
+        CubeSpawner.UpdateMaxCubeValue(value);
         
         // Уничтожаем другой кубик
         Destroy(otherCube.gameObject);

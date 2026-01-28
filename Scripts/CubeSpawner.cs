@@ -12,12 +12,13 @@ public class CubeSpawner : MonoBehaviour
     [SerializeField] private float fallForce = 2f;
     
     [Header("Cube Values")]
-    [SerializeField] private int[] possibleValues = {2, 2, 2, 4, 4, 8};
+    [SerializeField] private int[] basePossibleValues = {2, 2, 2, 4, 4, 8};
     
     private Camera mainCamera;
     private GameObject previewCube;
     private bool isTouching = false;
     private int nextValue;
+    private static int maxCubeValue = 8; // Начальный максимум
     
     void Start()
     {
@@ -213,10 +214,32 @@ public class CubeSpawner : MonoBehaviour
     
     int GetRandomValue()
     {
-        if (possibleValues == null || possibleValues.Length == 0)
+        // Создаем массив всех возможных значений от 2 до максимума
+        List<int> possibleValues = new List<int>();
+        
+        // Добавляем все значения от 2 до максимума, удваивая каждый раз
+        int currentValue = 2;
+        while (currentValue <= maxCubeValue)
+        {
+            possibleValues.Add(currentValue);
+            currentValue *= 2;
+        }
+        
+        if (possibleValues.Count == 0)
             return 2;
             
-        return possibleValues[Random.Range(0, possibleValues.Length)];
+        // Возвращаем случайное значение - все равновероятны
+        return possibleValues[Random.Range(0, possibleValues.Count)];
+    }
+    
+    // Статический метод для обновления максимального значения
+    public static void UpdateMaxCubeValue(int newValue)
+    {
+        if (newValue > maxCubeValue)
+        {
+            maxCubeValue = newValue;
+            Debug.Log($"New max cube value: {maxCubeValue}");
+        }
     }
     
     // Для визуализации границ в редакторе
