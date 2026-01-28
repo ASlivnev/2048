@@ -17,6 +17,8 @@ public class Cube : MonoBehaviour
     
     private bool canMerge = true;
     private float mergeCooldown = 0.1f;
+    private static float mergeCheckInterval = 1f; // Проверка каждую секунду
+    private float mergeCheckTimer = 0f;
     
     public int Value => value;
     
@@ -55,6 +57,18 @@ public class Cube : MonoBehaviour
             
         if (spriteRenderer == null)
             spriteRenderer = GetComponent<SpriteRenderer>();
+            
+    }
+    
+    void Update()
+    {
+        // Периодическая проверка слияний
+        mergeCheckTimer += Time.deltaTime;
+        if (mergeCheckTimer >= mergeCheckInterval)
+        {
+            mergeCheckTimer = 0f;
+            CheckForMerges();
+        }
     }
     
     void UpdateVisual()
@@ -171,5 +185,32 @@ public class Cube : MonoBehaviour
     {
         value = newValue;
         UpdateVisual();
+    }
+    
+    
+    void CheckForMerges()
+    {
+        if (cubeCollider == null || !canMerge) return;
+        
+        // Получаем все коллайдеры в точке контакта
+        Collider2D[] contacts = new Collider2D[10];
+        int contactCount = cubeCollider.OverlapCollider(new ContactFilter2D().NoFilter(), contacts);
+        
+        for (int i = 0; i < contactCount; i++)
+        {
+            Collider2D otherCollider = contacts[i];
+            if (otherCollider == null || otherCollider == cubeCollider) continue;
+            
+            Cube otherCube = otherCollider.GetComponent<Cube>();
+            if (otherCube != null && 
+                otherCube.Value == this.value && 
+                otherCube.canMerge && 
+                otherCube != this)
+            {
+                // Находим кубик с которым можно слиться
+                StartCoroutine(MergeCubes(otherCube));
+                break; // Сливаемся только с одним за раз
+            }
+        }
     }
 }
