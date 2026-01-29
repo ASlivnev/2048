@@ -15,6 +15,8 @@ public class CubeSpawner : MonoBehaviour
     [Header("Cube Values")]
     [SerializeField] private int[] basePossibleValues = {2, 2, 2, 4, 4, 8};
     
+    public static CubeSpawner Instance { get; private set; }
+    
     private Camera mainCamera;
     private GameObject previewCube;
     private bool isTouching = false;
@@ -32,9 +34,23 @@ public class CubeSpawner : MonoBehaviour
     private Vortex currentVortex;
     
     private bool isKeyboardControl = false;
+    private bool hasFallingCube = false; // Есть ли падающий кубик
+    private float previewHideTimer = 0f; // Таймер скрытия превью
+    private float previewHideDuration = 0.3f; // Длительность скрытия
     
     void Start()
     {
+        // Singleton pattern
+        if (Instance == null)
+        {
+            Instance = this;
+        }
+        else
+        {
+            Destroy(gameObject);
+            return;
+        }
+        
         mainCamera = Camera.main;
         nextValue = GetRandomValue();
         CreatePreviewCube();
@@ -56,6 +72,26 @@ public class CubeSpawner : MonoBehaviour
             return; // Блокируем все управление
         }
         
+        // Обновляем таймер скрытия превью
+        if (previewHideTimer > 0f)
+        {
+            previewHideTimer -= Time.deltaTime;
+            
+            // Скрываем превью пока таймер не истек
+            if (previewCube != null && previewCube.activeInHierarchy)
+            {
+                previewCube.SetActive(false);
+            }
+        }
+        else
+        {
+            // Показываем превью после истечения таймера
+            if (previewCube != null && !previewCube.activeInHierarchy)
+            {
+                previewCube.SetActive(true);
+            }
+        }
+        
         HandleInput();
         HandleKeyboardInput();
         HandleVortexInput();
@@ -66,6 +102,9 @@ public class CubeSpawner : MonoBehaviour
     {
         // Блокируем управление при Game Over
         if (GameOverManager.IsGameOver) return;
+        
+        // Блокируем управление пока превью скрыто
+        if (previewHideTimer > 0f) return;
         
         // Обработка мыши для Unity Editor
         if (Input.GetMouseButtonDown(0))
@@ -79,7 +118,7 @@ public class CubeSpawner : MonoBehaviour
         }
         
         // Обработка касаний для мобильных устройств
-        if (Input.touchCount > 0 && !GameOverManager.IsGameOver)
+        if (Input.touchCount > 0 && !GameOverManager.IsGameOver && previewHideTimer <= 0f)
         {
             Touch touch = Input.GetTouch(0);
             
@@ -110,12 +149,6 @@ public class CubeSpawner : MonoBehaviour
     void UpdatePreviewPosition()
     {
         if (previewCube == null) return;
-        
-        // Показываем превью если Game Over закончился
-        if (!GameOverManager.IsGameOver && !previewCube.activeInHierarchy)
-        {
-            previewCube.SetActive(true);
-        }
         
         // Если используется управление клавиатурой, не меняем позицию
         if (isKeyboardControl) return;
@@ -252,6 +285,9 @@ public class CubeSpawner : MonoBehaviour
         // Блокируем спаун при Game Over
         if (GameOverManager.IsGameOver) return;
         
+        // Устанавливаем таймер скрытия превью
+        previewHideTimer = previewHideDuration;
+        
         // Сохраняем позицию превью
         Vector2 spawnPosition = previewCube.transform.position;
         
@@ -260,6 +296,9 @@ public class CubeSpawner : MonoBehaviour
         
         // Создаем падающий кубик
         GameObject fallingCube = Instantiate(cubePrefab, spawnPosition, Quaternion.identity);
+        
+        // Добавляем трекер для отслеживания приземления
+        fallingCube.AddComponent<FallingCubeTracker>();
         
         Cube cubeScript = fallingCube.GetComponent<Cube>();
         if (cubeScript != null)
@@ -376,6 +415,15 @@ public class CubeSpawner : MonoBehaviour
             // cubeScript.enabled = true; // Если был отключен
             // Цвет уже установлен через SetValue выше
         }
+    }
+    
+    // Публичный метод для вызова из FallingCubeTracker
+    public void OnCubeLanded()
+    {
+        // Больше не нужно сбрасывать hasFallingCube - он не используется
+        // Таймер превью сам разблокирует управление
+        
+        Debug.Log("CubeSpawner: Cube landed");
     }
     
     int GetRandomValue()

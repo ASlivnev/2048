@@ -191,6 +191,12 @@ public class Vortex : MonoBehaviour
             isActive = true;
             currentDuration = 0f;
             
+            // Сообщаем GameOverManager что вихрь активирован
+            if (GameOverManager.Instance != null)
+            {
+                GameOverManager.Instance.OnVortexActivated();
+            }
+            
             // Показываем визуальный эффект
             if (visualEffect != null)
             {
@@ -204,6 +210,12 @@ public class Vortex : MonoBehaviour
     void DeactivateVortex()
     {
         isActive = false;
+        
+        // Сообщаем GameOverManager что вихрь деактивирован
+        if (GameOverManager.Instance != null)
+        {
+            GameOverManager.Instance.OnVortexDeactivated();
+        }
         
         // Очищаем массив притягиваемых кубиков
         for (int i = 0; i < pulledCubeCount; i++)

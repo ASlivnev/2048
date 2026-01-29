@@ -16,6 +16,7 @@ public class GameOverManager : MonoBehaviour
     private float currentContactTime = 0f;
     private bool isTouchingBar = false;
     private int touchingCubesCount = 0;
+    private bool isVortexActive = false; // Флаг активного вихря
     
     public static GameOverManager Instance { get; private set; }
     
@@ -50,27 +51,48 @@ public class GameOverManager : MonoBehaviour
     {
         if (isGameOver) return;
         
-        // Проверяем контакты с полосой
-        if (isTouchingBar && touchingCubesCount > 0)
+        // Управляем видимостью полосы в зависимости от вихря
+        if (gameOverBar != null)
         {
-            currentContactTime += Time.deltaTime;
-            
-            // Изменяем цвет в зависимости от времени
-            UpdateBarColor();
-            
-            // Проверяем условие проигрыша
-            if (currentContactTime >= dangerTime)
+            if (isVortexActive)
             {
-                TriggerGameOver();
+                // Скрываем полосу при активном вихре
+                if (gameOverBar.gameObject.activeInHierarchy)
+                {
+                    gameOverBar.gameObject.SetActive(false);
+                }
             }
-        }
-        else
-        {
-            // Сбрасываем таймер если нет контакта
-            if (currentContactTime > 0f)
+            else
             {
-                currentContactTime = 0f;
-                UpdateBarColor();
+                // Показываем полосу когда вихрь неактивен
+                if (!gameOverBar.gameObject.activeInHierarchy)
+                {
+                    gameOverBar.gameObject.SetActive(true);
+                }
+                
+                // Проверяем контакты с полосой только если она видима
+                if (isTouchingBar && touchingCubesCount > 0)
+                {
+                    currentContactTime += Time.deltaTime;
+                    
+                    // Изменяем цвет в зависимости от времени
+                    UpdateBarColor();
+                    
+                    // Проверяем условие проигрыша
+                    if (currentContactTime >= dangerTime)
+                    {
+                        TriggerGameOver();
+                    }
+                }
+                else
+                {
+                    // Сбрасываем таймер если нет контакта
+                    if (currentContactTime > 0f)
+                    {
+                        currentContactTime = 0f;
+                        UpdateBarColor();
+                    }
+                }
             }
         }
     }
@@ -127,6 +149,26 @@ public class GameOverManager : MonoBehaviour
         Debug.Log($"GameOverManager: Cube exited bar. Total touching: {touchingCubesCount}");
     }
     
+    // Методы для управления состоянием вихря
+    public void OnVortexActivated()
+    {
+        isVortexActive = true;
+        
+        // Сбрасываем таймер контактов при активации вихря
+        currentContactTime = 0f;
+        isTouchingBar = false;
+        touchingCubesCount = 0;
+        
+        Debug.Log("GameOverManager: Vortex activated - hiding bar");
+    }
+    
+    public void OnVortexDeactivated()
+    {
+        isVortexActive = false;
+        
+        Debug.Log("GameOverManager: Vortex deactivated - showing bar");
+    }
+    
     // Публичный метод для перезапуска игры
     public void RestartGame()
     {
@@ -134,11 +176,13 @@ public class GameOverManager : MonoBehaviour
         currentContactTime = 0f;
         touchingCubesCount = 0;
         isTouchingBar = false;
+        isVortexActive = false;
         
-        // Возвращаем белый цвет
+        // Возвращаем белый цвет и показываем полосу
         if (gameOverBar != null)
         {
             gameOverBar.color = normalColor;
+            gameOverBar.gameObject.SetActive(true);
         }
         
         // Снимаем паузу
