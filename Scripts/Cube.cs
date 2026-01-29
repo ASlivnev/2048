@@ -16,6 +16,10 @@ public class Cube : MonoBehaviour
     [SerializeField] private bool isSpecialCube = false;
     [SerializeField] private SpecialCubeType specialType = SpecialCubeType.None;
     
+    [Header("FX")]
+    [SerializeField] ParticleSystem mergeEffect;
+    [SerializeField] GameObject deathEffectPrefab;
+    
     private Rigidbody2D rb;
     private Collider2D cubeCollider;
     private TextMeshPro textMesh;
@@ -30,7 +34,10 @@ public class Cube : MonoBehaviour
         None,
         Plus,   // x2
         Minus,  // x/2
-        Death   // destroy
+        Death,  // destroy
+        Grow,   // <> увеличивает кубик в 2 раза
+        Shrink, // >< уменьшает кубик в 2 раза
+        Freeze  // * замораживает кубик
     }
     
     public int Value => value;
@@ -257,6 +264,12 @@ public class Cube : MonoBehaviour
                 return "X / 2";
             case SpecialCubeType.Death:
                 return "0";
+            case SpecialCubeType.Grow:
+                return "< >";
+            case SpecialCubeType.Shrink:
+                return "> <";
+            case SpecialCubeType.Freeze:
+                return "*";
             default:
                 Debug.LogWarning($"GetSpecialCubeText: Unknown specialType={specialType}");
                 return "?";
@@ -273,6 +286,12 @@ public class Cube : MonoBehaviour
                 return new Color(0.7f, 0.3f, 0.3f); // Менее яркий красный
             case SpecialCubeType.Death:
                 return Color.white; // Белый кубик смерти
+            case SpecialCubeType.Grow:
+                return new Color(0.3f, 0.3f, 0.8f); // Синий для увеличения
+            case SpecialCubeType.Shrink:
+                return new Color(0.8f, 0.6f, 0.2f); // Оранжевый для уменьшения
+            case SpecialCubeType.Freeze:
+                return new Color(0.7f, 0.9f, 1.0f); // Ледяной голубой
             default:
                 return Color.white;
         }
@@ -345,6 +364,20 @@ public class Cube : MonoBehaviour
         
         if (otherCube != null && otherCube != this)
         {
+            // Проверка на разморозку при столкновении со спецкубиками Plus и Minus
+            if ((this.specialType == SpecialCubeType.Plus || this.specialType == SpecialCubeType.Minus) && 
+                !otherCube.canMerge)
+            {
+                UnfreezeCube(otherCube);
+                return;
+            }
+            else if ((otherCube.specialType == SpecialCubeType.Plus || otherCube.specialType == SpecialCubeType.Minus) && 
+                     !this.canMerge)
+            {
+                UnfreezeCube(this);
+                return;
+            }
+            
             // Если это спецкубик
             if (isSpecialCube)
             {
@@ -357,6 +390,22 @@ public class Cube : MonoBehaviour
             {
                 otherCube.HandleSpecialCubeCollision(this);
                 return;
+            }
+            
+            // Проверка на разморозку
+            if (otherCube.Value == this.value)
+            {
+                // Если один из кубиков заморожен, размораживаем его
+                if (!this.canMerge && otherCube.canMerge)
+                {
+                    UnfreezeCube(this);
+                    return;
+                }
+                else if (this.canMerge && !otherCube.canMerge)
+                {
+                    UnfreezeCube(otherCube);
+                    return;
+                }
             }
             
             // Обычное слияние
@@ -384,6 +433,10 @@ public class Cube : MonoBehaviour
                 otherCube.value *= 2;
                 otherCube.UpdateVisual();
                 CubeSpawner.UpdateMaxCubeValue(otherCube.value);
+                
+                // Воспроизводим эффект на кубике, с которым взаимодействовали
+                otherCube.PlayMergeEffect();
+                
                 Debug.Log($"Plus cube: {originalValue} -> {otherCube.value}");
                 break;
                 
@@ -404,13 +457,58 @@ public class Cube : MonoBehaviour
                     otherCube.value = newValue;
                     otherCube.UpdateVisual();
                     Debug.Log($"Minus cube: {originalValue} -> {otherCube.value}");
+                    
+                    // Воспроизводим эффект на кубике, с которым взаимодействовали
+                    otherCube.PlayMergeEffect();
                 }
                 break;
                 
             case SpecialCubeType.Death:
+                // Создаем эффект смерти между кубиками
+                PlayDeathEffect(otherCube);
+                
                 // Уничтожаем другой кубик
                 Debug.Log($"Death cube destroyed {otherCube.value}");
                 Destroy(otherCube.gameObject);
+                break;
+                
+            case SpecialCubeType.Grow:
+                // Увеличиваем физический размер другого кубика в 2 раза
+                Vector3 currentScale = otherCube.transform.localScale;
+                Vector3 newScale = currentScale * 2f;
+                
+                // Ограничиваем максимальный размер чтобы кубик не стал слишком большим
+                float maxScale = 3f;
+                if (newScale.x > maxScale) newScale = Vector3.one * maxScale;
+                
+                otherCube.transform.localScale = newScale;
+                Debug.Log($"Grow cube (<>): scale {currentScale} -> {newScale}");
+                break;
+                
+            case SpecialCubeType.Shrink:
+                // Уменьшаем физический размер другого кубика в 2 раза
+                currentScale = otherCube.transform.localScale;
+                newScale = currentScale / 2f;
+                
+                // Ограничиваем минимальный размер чтобы кубик не стал слишком маленьким
+                float minScale = 0.3f;
+                if (newScale.x < minScale)
+                {
+                    // Если результат меньше минимума, уничтожаем кубик
+                    Debug.Log($"Shrink cube (><): scale {currentScale} -> destroyed (too small)");
+                    Destroy(otherCube.gameObject);
+                }
+                else
+                {
+                    // Иначе устанавливаем новый размер
+                    otherCube.transform.localScale = newScale;
+                    Debug.Log($"Shrink cube (><): scale {currentScale} -> {newScale}");
+                }
+                break;
+                
+            case SpecialCubeType.Freeze:
+                // Замораживаем другой кубик
+                FreezeCube(otherCube);
                 break;
                 
             default:
@@ -423,6 +521,186 @@ public class Cube : MonoBehaviour
         Destroy(gameObject);
     }
     
+    void FreezeCube(Cube targetCube)
+    {
+        if (targetCube == null) return;
+        
+        // Делаем кубик ледяного цвета
+        Color iceColor = new Color(0.7f, 0.9f, 1.0f); // Ледяной голубой
+        if (targetCube.spriteRenderer != null)
+        {
+            targetCube.spriteRenderer.color = iceColor;
+        }
+        
+        // Делаем текст немного темнее чем цвет кубика
+        if (targetCube.textMesh != null)
+        {
+            Color darkerIceColor = Color.black; // Темнее ледяного цвета
+            targetCube.textMesh.color = darkerIceColor;
+        }
+        
+        // Делаем Rigidbody статичным
+        if (targetCube.rb != null)
+        {
+            targetCube.rb.bodyType = RigidbodyType2D.Static;
+        }
+        
+        // Отключаем возможность слияния для замороженного кубика
+        targetCube.canMerge = false;
+        
+        // Включаем зацикленный эффект заморозки
+        PlayFreezeEffect(targetCube);
+        
+        Debug.Log($"Freeze cube (*): froze cube with value {targetCube.value}");
+    }
+    
+    void UnfreezeCube(Cube targetCube)
+    {
+        if (targetCube == null) return;
+        
+        // Возвращаем обычный цвет в зависимости от значения
+        targetCube.UpdateVisual();
+        
+        // Возвращаем динамическую физику
+        if (targetCube.rb != null)
+        {
+            targetCube.rb.bodyType = RigidbodyType2D.Dynamic;
+        }
+        
+        // Включаем возможность слияния
+        targetCube.canMerge = true;
+        
+        // Останавливаем эффект заморозки
+        StopFreezeEffect(targetCube);
+        
+        Debug.Log($"Unfreeze cube: unfroze cube with value {targetCube.value}");
+    }
+    
+    void PlayDeathEffect(Cube otherCube)
+    {
+        if (otherCube == null) return;
+        
+        // Вычисляем позицию между двумя кубиками
+        Vector3 deathPosition = (transform.position + otherCube.transform.position) / 2f;
+        
+        if (deathEffectPrefab != null)
+        {
+            // Создаем эффект смерти из префаба
+            GameObject deathEffect = Instantiate(deathEffectPrefab, deathPosition, Quaternion.identity);
+            var deathEffectParticle = deathEffect.GetComponent<ParticleSystem>();
+            deathEffectParticle.Play();
+            // Уничтожаем эффект через 1 секунду
+            Destroy(deathEffect, 1f);
+            
+            Debug.Log($"PlayDeathEffect: created death effect from prefab at {deathPosition}");
+        }
+        else
+        {
+            // Если префаб не задан, используем существующий mergeEffect
+            if (mergeEffect != null)
+            {
+                // Создаем инстанс mergeEffect
+                GameObject deathEffect = Instantiate(mergeEffect.gameObject, deathPosition, Quaternion.identity);
+                
+                // Уничтожаем через 1 секунду
+                Destroy(deathEffect, 1f);
+                
+                Debug.Log($"PlayDeathEffect: created mergeEffect instance at {deathPosition}");
+            }
+            else
+            {
+                Debug.LogWarning("PlayDeathEffect: deathEffectPrefab is null and mergeEffect is also null");
+            }
+        }
+    }
+    
+    void PlayFreezeEffect(Cube targetCube)
+    {
+        if (targetCube.mergeEffect != null)
+        {
+            // Устанавливаем ледяной цвет для эффекта
+            Color iceColor = new Color(0.7f, 0.9f, 1.0f); // Ледяной голубой
+            
+            // Настраиваем эффект для заморозки
+            var main = targetCube.mergeEffect.main;
+            main.startColor = iceColor;
+            main.loop = true; // Зацикливаем эффект
+            
+            // Воспроизводим эффект
+            targetCube.mergeEffect.Play();
+            
+            Debug.Log($"PlayFreezeEffect: started loop effect with ice color");
+        }
+        else
+        {
+            Debug.LogWarning("PlayFreezeEffect: mergeEffect is null");
+        }
+    }
+    
+    void StopFreezeEffect(Cube targetCube)
+    {
+        if (targetCube.mergeEffect != null)
+        {
+            // Останавливаем эффект
+            targetCube.mergeEffect.Stop();
+            
+            // Сбрасываем loop в false
+            var main = targetCube.mergeEffect.main;
+            main.loop = false;
+            
+            Debug.Log($"StopFreezeEffect: stopped freeze effect");
+        }
+        else
+        {
+            Debug.LogWarning("StopFreezeEffect: mergeEffect is null");
+        }
+    }
+    
+    void PlayMergeEffect()
+    {
+        if (mergeEffect != null)
+        {
+            // Получаем цвет текущего кубика
+            Color cubeColor;
+            if (isSpecialCube)
+            {
+                cubeColor = GetSpecialCubeColor();
+            }
+            else
+            {
+                if (valueColors != null && valueColors.Length > 0)
+                {
+                    int colorIndex = GetColorIndex();
+                    if (colorIndex < valueColors.Length)
+                    {
+                        cubeColor = valueColors[colorIndex];
+                    }
+                    else
+                    {
+                        cubeColor = valueColors[valueColors.Length - 1];
+                    }
+                }
+                else
+                {
+                    cubeColor = Color.white;
+                }
+            }
+            
+            // Устанавливаем цвет частиц
+            var main = mergeEffect.main;
+            main.startColor = cubeColor;
+            
+            // Воспроизводим эффект
+            mergeEffect.Play();
+            
+            Debug.Log($"PlayMergeEffect: played with color {cubeColor}");
+        }
+        else
+        {
+            Debug.LogWarning("PlayMergeEffect: mergeEffect is null");
+        }
+    }
+    
     IEnumerator MergeCubes(Cube otherCube)
     {
         // Блокируем дальнейшие слияния
@@ -432,6 +710,9 @@ public class Cube : MonoBehaviour
         // Удваиваем значение
         value *= 2;
         UpdateVisual();
+        
+        // Воспроизводим эффект слияния с цветом кубика
+        PlayMergeEffect();
         
         // Обновляем максимальное значение в спаунере
         CubeSpawner.UpdateMaxCubeValue(value);
