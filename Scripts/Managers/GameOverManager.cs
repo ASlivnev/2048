@@ -118,8 +118,17 @@ public class GameOverManager : MonoBehaviour
             gameOverBar.color = dangerColor;
         }
         
-        // Ставим игру на паузу
-        Time.timeScale = 0f;
+        // Вызываем Game Over в GameManager
+        if (GameManager.Instance != null)
+        {
+            GameManager.Instance.TriggerGameOver();
+        }
+        else
+        {
+            // Если GameManager нет, ставим на паузу вручную
+            Time.timeScale = 0f;
+            Debug.LogError("GameOverManager: GameManager not found! Using fallback pause.");
+        }
         
         // Выводим в консоль
         Debug.Log("GAME OVER");
