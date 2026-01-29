@@ -24,7 +24,7 @@ public class CubeSpawner : MonoBehaviour
     [Header("Special Cubes")]
     [SerializeField] int specialCubeInterval = 5; // Через сколько ходов спецкубик
     private int spawnCounter = 0;
-    private int specialCubeIndex = 0; // 0=Plus, 1=Minus, 2=Death, 3=Grow, 4=Shrink, 5=Freeze
+    private int specialCubeIndex = 0; // 0=Plus, 1=Minus, 2=Death, 3=Grow, 4=Shrink, 5=Freeze, 6=Vortex
     
     [Header("Vortex System")]
     [SerializeField] GameObject vortexPrefab;
@@ -158,6 +158,9 @@ public class CubeSpawner : MonoBehaviour
                     case 5:
                         type = Cube.SpecialCubeType.Freeze;
                         break;
+                    case 6:
+                        type = Cube.SpecialCubeType.Vortex;
+                        break;
                     default:
                         type = Cube.SpecialCubeType.Plus;
                         break;
@@ -285,6 +288,9 @@ public class CubeSpawner : MonoBehaviour
             case 5:
                 type = Cube.SpecialCubeType.Freeze;
                 break;
+            case 6:
+                type = Cube.SpecialCubeType.Vortex;
+                break;
             default:
                 type = Cube.SpecialCubeType.Plus;
                 specialCubeIndex = 0;
@@ -298,7 +304,7 @@ public class CubeSpawner : MonoBehaviour
         SetupSpecialCubeAppearance(cubeScript);
         
         // Переходим к следующему спецкубику
-        specialCubeIndex = (specialCubeIndex + 1) % 6;
+        specialCubeIndex = (specialCubeIndex + 1) % 7;
         
         Debug.Log($"Spawned special cube: {type}, next index: {specialCubeIndex}");
     }

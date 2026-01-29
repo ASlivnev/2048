@@ -38,7 +38,8 @@ public class Cube : MonoBehaviour
         Death,  // destroy
         Grow,   // <> увеличивает кубик в 2 раза
         Shrink, // >< уменьшает кубик в 2 раза
-        Freeze  // * замораживает кубик
+        Freeze, // * замораживает кубик
+        Vortex  // ~ создает вихрь
     }
     
     public int Value => value;
@@ -282,6 +283,8 @@ public class Cube : MonoBehaviour
                 return "> <";
             case SpecialCubeType.Freeze:
                 return "*";
+            case SpecialCubeType.Vortex:
+                return "~";
             default:
                 Debug.LogWarning($"GetSpecialCubeText: Unknown specialType={specialType}");
                 return "?";
@@ -304,6 +307,8 @@ public class Cube : MonoBehaviour
                 return new Color(0.8f, 0.6f, 0.2f); // Оранжевый для уменьшения
             case SpecialCubeType.Freeze:
                 return new Color(0.7f, 0.9f, 1.0f); // Ледяной голубой
+            case SpecialCubeType.Vortex:
+                return new Color(0.5f, 0.3f, 0.8f); // Фиолетовый для вихря
             default:
                 return Color.white;
         }
@@ -523,6 +528,11 @@ public class Cube : MonoBehaviour
                 FreezeCube(otherCube);
                 break;
                 
+            case SpecialCubeType.Vortex:
+                // Создаем вихрь между кубиками
+                CreateVortexEffect(otherCube);
+                break;
+                
             default:
                 Debug.LogWarning($"Unknown special cube type: {specialType}");
                 canMerge = true; // Разблокируем если тип неизвестен
@@ -564,6 +574,28 @@ public class Cube : MonoBehaviour
         PlayFreezeEffect(targetCube);
         
         Debug.Log($"Freeze cube (*): froze cube with value {targetCube.value}");
+    }
+    
+    void CreateVortexEffect(Cube otherCube)
+    {
+        if (otherCube == null) return;
+        
+        // Вычисляем позицию между двумя кубиками
+        Vector3 vortexPosition = (transform.position + otherCube.transform.position) / 2f;
+        
+        // Создаем вихрь
+        GameObject vortexObj = new GameObject("Vortex");
+        vortexObj.transform.position = vortexPosition;
+        
+        Vortex vortex = vortexObj.AddComponent<Vortex>();
+        
+        // Активируем вихрь
+        vortex.ActivateVortex();
+        
+        // Воспроизводим эффект создания вихря
+        PlayMergeEffect();
+        
+        Debug.Log($"Vortex cube (~): created vortex at {vortexPosition}");
     }
     
     void UnfreezeCube(Cube targetCube)
