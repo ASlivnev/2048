@@ -26,6 +26,7 @@ public class Cube : MonoBehaviour
     private SpriteRenderer spriteRenderer;
     private bool canMerge = true;
     private float mergeCheckTimer = 0f;
+    private float mergeCooldownTimer = 0f;
     private float originalFontSize;
     private Quaternion textOriginalRotation;
     
@@ -116,6 +117,17 @@ public class Cube : MonoBehaviour
         {
             mergeCheckTimer = 0f;
             CheckForMerges();
+        }
+        
+        // Обновляем таймер кулдауна слияний
+        if (mergeCooldownTimer > 0f)
+        {
+            mergeCooldownTimer -= Time.deltaTime;
+            if (mergeCooldownTimer <= 0f)
+            {
+                canMerge = true;
+                mergeCooldownTimer = 0f;
+            }
         }
         
         // Держим текст в правильном положении
@@ -413,7 +425,7 @@ public class Cube : MonoBehaviour
                 otherCube.canMerge && 
                 this.canMerge)
             {
-                StartCoroutine(MergeCubes(otherCube));
+                MergeCubes(otherCube);
             }
         }
     }
@@ -701,7 +713,7 @@ public class Cube : MonoBehaviour
         }
     }
     
-    IEnumerator MergeCubes(Cube otherCube)
+    void MergeCubes(Cube otherCube)
     {
         // Блокируем дальнейшие слияния
         canMerge = false;
@@ -723,9 +735,8 @@ public class Cube : MonoBehaviour
         // Небольшой эффект отталкивания для разделения кубиков
         rb.AddForce(Vector2.up * 1f, ForceMode2D.Impulse);
         
-        // Короткая пауза для предотвращения мгновенных повторных слияний
-        yield return new WaitForSeconds(mergeCooldown);
-        canMerge = true;
+        // Устанавливаем таймер кулдауна вместо корутины
+        mergeCooldownTimer = mergeCooldown;
     }
     
     public void SetValue(int newValue)
@@ -774,7 +785,7 @@ public class Cube : MonoBehaviour
                 otherCube != this)
             {
                 // Находим кубик с которым можно слиться
-                StartCoroutine(MergeCubes(otherCube));
+                MergeCubes(otherCube);
                 break; // Сливаемся только с одним за раз
             }
         }
