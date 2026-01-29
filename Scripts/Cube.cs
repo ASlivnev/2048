@@ -110,6 +110,30 @@ public class Cube : MonoBehaviour
         UpdateVisual();
     }
     
+    void OnTriggerEnter2D(Collider2D other)
+    {
+        // Проверяем контакт с полосой Game Over
+        if (other.CompareTag("GameOverBar"))
+        {
+            if (GameOverManager.Instance != null)
+            {
+                GameOverManager.Instance.OnCubeEnterBar();
+            }
+        }
+    }
+    
+    void OnTriggerExit2D(Collider2D other)
+    {
+        // Проверяем выход из контакта с полосой Game Over
+        if (other.CompareTag("GameOverBar"))
+        {
+            if (GameOverManager.Instance != null)
+            {
+                GameOverManager.Instance.OnCubeExitBar();
+            }
+        }
+    }
+    
     void Update()
     {
         // Периодическая проверка слияний

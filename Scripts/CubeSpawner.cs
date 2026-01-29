@@ -45,6 +45,17 @@ public class CubeSpawner : MonoBehaviour
     
     void Update()
     {
+        // Проверяем Game Over
+        if (GameOverManager.IsGameOver)
+        {
+            // Скрываем превью при Game Over
+            if (previewCube != null && previewCube.activeInHierarchy)
+            {
+                previewCube.SetActive(false);
+            }
+            return; // Блокируем все управление
+        }
+        
         HandleInput();
         HandleKeyboardInput();
         HandleVortexInput();
@@ -53,6 +64,9 @@ public class CubeSpawner : MonoBehaviour
     
     void HandleInput()
     {
+        // Блокируем управление при Game Over
+        if (GameOverManager.IsGameOver) return;
+        
         // Обработка мыши для Unity Editor
         if (Input.GetMouseButtonDown(0))
         {
@@ -65,7 +79,7 @@ public class CubeSpawner : MonoBehaviour
         }
         
         // Обработка касаний для мобильных устройств
-        if (Input.touchCount > 0)
+        if (Input.touchCount > 0 && !GameOverManager.IsGameOver)
         {
             Touch touch = Input.GetTouch(0);
             
@@ -83,6 +97,9 @@ public class CubeSpawner : MonoBehaviour
     
     void EndTouch()
     {
+        // Блокируем спаун при Game Over
+        if (GameOverManager.IsGameOver) return;
+        
         if (isTouching && previewCube != null)
         {
             SpawnFallingCube();
@@ -93,6 +110,12 @@ public class CubeSpawner : MonoBehaviour
     void UpdatePreviewPosition()
     {
         if (previewCube == null) return;
+        
+        // Показываем превью если Game Over закончился
+        if (!GameOverManager.IsGameOver && !previewCube.activeInHierarchy)
+        {
+            previewCube.SetActive(true);
+        }
         
         // Если используется управление клавиатурой, не меняем позицию
         if (isKeyboardControl) return;
@@ -225,6 +248,9 @@ public class CubeSpawner : MonoBehaviour
     void SpawnFallingCube()
     {
         if (previewCube == null) return;
+        
+        // Блокируем спаун при Game Over
+        if (GameOverManager.IsGameOver) return;
         
         // Сохраняем позицию превью
         Vector2 spawnPosition = previewCube.transform.position;
