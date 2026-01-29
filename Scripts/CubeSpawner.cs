@@ -1,5 +1,6 @@
 using System.Collections;
 using System.Collections.Generic;
+using TMPro;
 using UnityEngine;
 
 public class CubeSpawner : MonoBehaviour
@@ -21,9 +22,14 @@ public class CubeSpawner : MonoBehaviour
     private static int maxCubeValue = 8; // Начальный максимум
     
     [Header("Special Cubes")]
-    [SerializeField] private int specialCubeInterval = 3; // Через сколько ходов спецкубик
+    [SerializeField] int specialCubeInterval = 5; // Через сколько ходов спецкубик
     private int spawnCounter = 0;
     private int specialCubeIndex = 0; // 0=Plus, 1=Minus, 2=Death
+    
+    [Header("Vortex System")]
+    [SerializeField] GameObject vortexPrefab;
+    [SerializeField] KeyCode vortexKey = KeyCode.V;
+    private Vortex currentVortex;
     
     void Start()
     {
@@ -35,6 +41,7 @@ public class CubeSpawner : MonoBehaviour
     void Update()
     {
         HandleInput();
+        HandleVortexInput();
         UpdatePreviewPosition();
     }
     
@@ -130,6 +137,9 @@ public class CubeSpawner : MonoBehaviour
                         break;
                 }
                 cubeScript.SetSpecialCube(type);
+                
+                // Применяем настройки внешнего вида и для превью
+                SetupSpecialCubeAppearance(cubeScript);
             }
         }
         else
@@ -249,10 +259,66 @@ public class CubeSpawner : MonoBehaviour
         Debug.Log($"About to call SetSpecialCube with type: {type} (index: {specialCubeIndex})");
         cubeScript.SetSpecialCube(type);
         
+        // Дополнительная настройка внешнего вида для спецкубиков
+        SetupSpecialCubeAppearance(cubeScript);
+        
         // Переходим к следующему спецкубику
         specialCubeIndex = (specialCubeIndex + 1) % 3;
         
         Debug.Log($"Spawned special cube: {type}, next index: {specialCubeIndex}");
+    }
+    
+    void SetupSpecialCubeAppearance(Cube cubeScript)
+    {
+        // Делаем кубик ромбовидным через поворот спрайта
+        SpriteRenderer spriteRenderer = cubeScript.GetComponent<SpriteRenderer>();
+        if (spriteRenderer != null)
+        {
+            // Создаем материал с поддержкой скругленных углов
+            Material roundedMaterial = new Material(Shader.Find("Sprites/Default"));
+            spriteRenderer.material = roundedMaterial;
+            
+            // Добавляем эффект скругления через цвет и прозрачность краев
+            Color currentColor = spriteRenderer.color;
+            spriteRenderer.color = new Color(currentColor.r, currentColor.g, currentColor.b, 0.95f);
+            
+            // Поворачиваем спрайт на 45 градусов чтобы получился ромб
+            spriteRenderer.transform.rotation = Quaternion.Euler(0f, 0f, 45f);
+            
+            // Немного уменьшаем масштаб чтобы ромб не был слишком большим
+            cubeScript.transform.localScale = new Vector3(0.85f, 0.85f, 1f);
+            
+            // Возвращаем текст в нормальное положение
+            TextMeshPro textMesh = cubeScript.GetComponentInChildren<TextMeshPro>();
+            if (textMesh != null)
+            {
+                textMesh.transform.rotation = Quaternion.Euler(0f, 0f, 0f);
+            }
+        }
+        
+        // Увеличиваем шрифт для спецкубиков - отключаем auto-size и устанавливаем размер
+        TextMeshPro textMeshComponent = cubeScript.GetComponentInChildren<TextMeshPro>();
+        if (textMeshComponent != null)
+        {
+            // Отключаем автоматический размер
+            textMeshComponent.enableAutoSizing = false;
+            
+            // Устанавливаем большой размер шрифта
+            float originalFontSize = textMeshComponent.fontSize;
+            textMeshComponent.fontSize = Mathf.Max(8f, originalFontSize * 1.5f);
+            textMeshComponent.fontStyle = TMPro.FontStyles.Bold;
+            
+            // Увеличиваем сам текстовый объект для лучшей видимости
+            textMeshComponent.transform.localScale = new Vector3(1.2f, 1.2f, 1f);
+            
+            // Выравниваем текст по центру вертикально
+            textMeshComponent.alignment = TextAlignmentOptions.Center;
+            
+            // Корректируем позицию текста для лучшего центрирования
+            Vector3 textPosition = textMeshComponent.transform.localPosition;
+            textPosition.y = 0f; // Устанавливаем точно в центр по Y
+            textMeshComponent.transform.localPosition = textPosition;
+        }
     }
     
     void SetupFallingCube(GameObject cube)
@@ -316,6 +382,56 @@ public class CubeSpawner : MonoBehaviour
         {
             maxCubeValue = newValue;
             Debug.Log($"New max cube value: {maxCubeValue}");
+        }
+    }
+    
+    void HandleVortexInput()
+    {
+        // Активация вихря по клавише V
+        if (Input.GetKeyDown(vortexKey))
+        {
+            CreateVortexAtMousePosition();
+        }
+        
+        // Активация вихря по правому клику мыши
+        if (Input.GetMouseButtonDown(1))
+        {
+            CreateVortexAtMousePosition();
+        }
+    }
+    
+    void CreateVortexAtMousePosition()
+    {
+        if (vortexPrefab == null)
+        {
+            Debug.LogWarning("Vortex prefab not assigned!");
+            return;
+        }
+        
+        // Получаем позицию мыши в мире
+        Vector2 mousePosition = mainCamera.ScreenToWorldPoint(Input.mousePosition);
+        
+        // Проверяем что клик в пределах игровой области
+        if (mousePosition.x >= minXPosition && mousePosition.x <= maxXPosition)
+        {
+            // Создаем вихрь
+            GameObject vortexObject = Instantiate(vortexPrefab, mousePosition, Quaternion.identity);
+            currentVortex = vortexObject.GetComponent<Vortex>();
+            
+            if (currentVortex != null)
+            {
+                currentVortex.ActivateVortex();
+                Debug.Log($"Vortex created at position: {mousePosition}");
+            }
+            else
+            {
+                Debug.LogError("Vortex component not found on prefab!");
+                Destroy(vortexObject);
+            }
+        }
+        else
+        {
+            Debug.Log("Click outside game area - vortex not created");
         }
     }
     

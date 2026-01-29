@@ -22,6 +22,7 @@ public class Cube : MonoBehaviour
     private SpriteRenderer spriteRenderer;
     private bool canMerge = true;
     private float mergeCheckTimer = 0f;
+    private float originalFontSize;
     
     public enum SpecialCubeType
     {
@@ -75,20 +76,24 @@ public class Cube : MonoBehaviour
             Debug.Log($"Initialized valueColors with {valueColors.Length} colors");
         }
         
-        if (rb == null)
-            rb = GetComponent<Rigidbody2D>();
-            
-        if (cubeCollider == null)
-            cubeCollider = GetComponent<Collider2D>();
-            
-        if (textMesh == null)
-            textMesh = GetComponentInChildren<TextMeshPro>();
+        cubeCollider = GetComponent<Collider2D>();
+        rb = GetComponent<Rigidbody2D>();
+        textMesh = GetComponentInChildren<TextMeshPro>();
+        spriteRenderer = GetComponent<SpriteRenderer>();
+        
+        if (textMesh != null)
+            originalFontSize = textMesh.fontSize;
             
         if (spriteRenderer == null)
             spriteRenderer = GetComponent<SpriteRenderer>();
         
+        // Устанавливаем тег для кубика
+        if (gameObject.tag != "Cube")
+        {
+            gameObject.tag = "Cube";
+        }
+        
         UpdateVisual();
-            
     }
     
     void Update()
@@ -162,7 +167,15 @@ public class Cube : MonoBehaviour
         {
             if (isSpecialCube)
             {
-                textMesh.color = Color.white; // Белый текст для спецкубиков
+                // Разный цвет текста для разных спецкубиков
+                if (specialType == SpecialCubeType.Death)
+                {
+                    textMesh.color = Color.black; // Черный текст для смерти
+                }
+                else
+                {
+                    textMesh.color = Color.white; // Белый текст для плюса и минуса
+                }
             }
             else
             {
@@ -226,7 +239,7 @@ public class Cube : MonoBehaviour
             case SpecialCubeType.Minus:
                 return "-";
             case SpecialCubeType.Death:
-                return "x";
+                return "×";
             default:
                 Debug.LogWarning($"GetSpecialCubeText: Unknown specialType={specialType}");
                 return "?";
@@ -242,7 +255,7 @@ public class Cube : MonoBehaviour
             case SpecialCubeType.Minus:
                 return Color.red;
             case SpecialCubeType.Death:
-                return new Color(0.2f, 0.2f, 0.2f); // Мрачный серый
+                return Color.white; // Белый кубик смерти
             default:
                 return Color.white;
         }
@@ -253,7 +266,60 @@ public class Cube : MonoBehaviour
         isSpecialCube = true;
         specialType = type;
         Debug.Log($"SetSpecialCube: type={type}, isSpecialCube={isSpecialCube}");
+        
+        // Настраиваем внешний вид для спецкубиков
+        SetupSpecialCubeAppearance();
+        
         UpdateVisual();
+    }
+    
+    void SetupSpecialCubeAppearance()
+    {
+        // Делаем кубик ромбовидным через поворот спрайта
+        if (spriteRenderer != null)
+        {
+            // Создаем материал с поддержкой скругленных углов
+            Material roundedMaterial = new Material(Shader.Find("Sprites/Default"));
+            spriteRenderer.material = roundedMaterial;
+            
+            // Добавляем эффект скругления через цвет и прозрачность краев
+            Color currentColor = spriteRenderer.color;
+            spriteRenderer.color = new Color(currentColor.r, currentColor.g, currentColor.b, 0.95f);
+            
+            // Поворачиваем спрайт на 45 градусов чтобы получился ромб
+            spriteRenderer.transform.rotation = Quaternion.Euler(0f, 0f, 45f);
+            
+            // Немного уменьшаем масштаб чтобы ромб не был слишком большим
+            transform.localScale = new Vector3(0.85f, 0.85f, 1f);
+            
+            // Возвращаем текст в нормальное положение
+            if (textMesh != null)
+            {
+                textMesh.transform.rotation = Quaternion.Euler(0f, 0f, 0f);
+            }
+        }
+        
+        // Увеличиваем шрифт для спецкубиков - отключаем auto-size и устанавливаем размер
+        if (textMesh != null)
+        {
+            // Отключаем автоматический размер
+            textMesh.enableAutoSizing = false;
+            
+            // Устанавливаем большой размер шрифта
+            textMesh.fontSize = Mathf.Max(8f, originalFontSize * 1.5f);
+            textMesh.fontStyle = FontStyles.Bold;
+            
+            // Увеличиваем сам текстовый объект для лучшей видимости
+            textMesh.transform.localScale = new Vector3(1.2f, 1.2f, 1f);
+            
+            // Выравниваем текст по центру вертикально
+            textMesh.alignment = TextAlignmentOptions.Center;
+            
+            // Корректируем позицию текста для лучшего центрирования
+            Vector3 textPosition = textMesh.transform.localPosition;
+            textPosition.y = 0f; // Устанавливаем точно в центр по Y
+            textMesh.transform.localPosition = textPosition;
+        }
     }
     
     private Color GetContrastColor(Color backgroundColor)
@@ -270,17 +336,17 @@ public class Cube : MonoBehaviour
         if (val < 1000)
             return val.ToString();
         else if (val < 1000000)
-            return (val / 1000).ToString() + "К";
+            return (val / 1000).ToString() + " К";
         else if (val < 1000000000)
-            return (val / 1000000).ToString() + "М";
+            return (val / 1000000).ToString() + " М";
         else if (val < 1000000000000)
-            return (val / 1000000000).ToString() + "Б";
+            return (val / 1000000000).ToString() + " Б";
         else if (val < 1000000000000000)
-            return (val / 1000000000000).ToString() + "Т";
+            return (val / 1000000000000).ToString() + " Т";
         else if (val < 1000000000000000000)
-            return (val / 1000000000000000).ToString() + "Кк";
+            return (val / 1000000000000000).ToString() + " Кк";
         else
-            return (val / 1000000000000000000).ToString() + "Ккк";
+            return (val / 1000000000000000000).ToString() + " Ккк";
     }
     
     private int GetColorIndex()
@@ -413,6 +479,26 @@ public class Cube : MonoBehaviour
         isSpecialCube = false;
         specialType = SpecialCubeType.None;
         Debug.Log($"SetValue: value={newValue}, isSpecialCube={isSpecialCube}");
+        
+        // Восстанавливаем оригинальный размер шрифта и масштаб для обычных кубиков
+        if (textMesh != null && originalFontSize > 0)
+        {
+            // Включаем обратно auto-size если был включен
+            textMesh.enableAutoSizing = true;
+            textMesh.fontSize = originalFontSize;
+            textMesh.fontStyle = FontStyles.Normal;
+            
+            // Восстанавливаем масштаб текста
+            textMesh.transform.localScale = new Vector3(1f, 1f, 1f);
+        }
+        
+        // Восстанавливаем оригинальный масштаб и поворот кубика
+        transform.localScale = new Vector3(1f, 1f, 1f);
+        if (spriteRenderer != null)
+        {
+            spriteRenderer.transform.rotation = Quaternion.Euler(0f, 0f, 0f);
+        }
+        
         UpdateVisual();
     }
     

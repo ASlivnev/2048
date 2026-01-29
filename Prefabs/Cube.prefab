@@ -57,7 +57,7 @@ MeshRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 5972461169677891255, guid: bafa84e579995488497f61b6672991b7, type: 2}
+  - {fileID: -33395697559195524, guid: 19d27da763e214012bace43583ca5ce8, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -101,8 +101,8 @@ MonoBehaviour:
       m_Calls: []
   m_text: 16
   m_isRightToLeft: 0
-  m_fontAsset: {fileID: 11400000, guid: bafa84e579995488497f61b6672991b7, type: 2}
-  m_sharedMaterial: {fileID: 5972461169677891255, guid: bafa84e579995488497f61b6672991b7, type: 2}
+  m_fontAsset: {fileID: 11400000, guid: 19d27da763e214012bace43583ca5ce8, type: 2}
+  m_sharedMaterial: {fileID: -33395697559195524, guid: 19d27da763e214012bace43583ca5ce8, type: 2}
   m_fontSharedMaterials: []
   m_fontMaterial: {fileID: 0}
   m_fontMaterials: []
@@ -186,7 +186,7 @@ GameObject:
   - component: {fileID: 2814900058536097203}
   m_Layer: 0
   m_Name: Cube
-  m_TagString: Untagged
+  m_TagString: Cube
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
@@ -272,11 +272,11 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   value: 2
-  textMesh: {fileID: 3089839103466143469}
-  rb: {fileID: 4034498107474201242}
-  cubeCollider: {fileID: 2814900058536097203}
-  spriteRenderer: {fileID: 561803349220908796}
   valueColors: []
+  mergeCooldown: 0.3
+  mergeCheckInterval: 1
+  isSpecialCube: 0
+  specialType: 1
 --- !u!50 &4034498107474201242
 Rigidbody2D:
   serializedVersion: 4
