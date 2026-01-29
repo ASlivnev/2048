@@ -23,6 +23,7 @@ public class Cube : MonoBehaviour
     private bool canMerge = true;
     private float mergeCheckTimer = 0f;
     private float originalFontSize;
+    private Quaternion textOriginalRotation;
     
     public enum SpecialCubeType
     {
@@ -43,34 +44,34 @@ public class Cube : MonoBehaviour
         {
             valueColors = new Color[]
             {
-                // 2 – 64 (яркий старт)
-                new Color(0.95f, 0.85f, 0.35f), // 2  — тёплый жёлтый
-                new Color(0.35f, 0.75f, 0.95f), // 4  — холодный голубой
-                new Color(0.95f, 0.55f, 0.30f), // 8  — оранжевый
-                new Color(0.45f, 0.55f, 0.95f), // 16 — синий
-                new Color(0.90f, 0.35f, 0.25f), // 32 — красно-оранжевый
-                new Color(0.35f, 0.85f, 0.70f), // 64 — мятный
+                // 2 – 64
+                new Color(0.92f, 0.84f, 0.52f), // 2  — мягкий тёплый жёлтый
+                new Color(0.52f, 0.72f, 0.88f), // 4  — спокойный голубой
+                new Color(0.92f, 0.62f, 0.42f), // 8  — приглушённый оранжевый
+                new Color(0.48f, 0.58f, 0.82f), // 16 — холодный синий
+                new Color(0.88f, 0.48f, 0.40f), // 32 — тёплый коралл
+                new Color(0.46f, 0.78f, 0.68f), // 64 — мягкий мятный
 
                 // 128 – 2048
-                new Color(0.95f, 0.75f, 0.40f), // 128 — янтарный
-                new Color(0.55f, 0.45f, 0.95f), // 256 — фиолетово-синий
-                new Color(0.90f, 0.45f, 0.65f), // 512 — розово-коралловый
-                new Color(0.30f, 0.75f, 0.95f), // 1024 — небесный
-                new Color(0.85f, 0.30f, 0.55f), // 2048 — малиновый
+                new Color(0.90f, 0.74f, 0.48f), // 128 — янтарный
+                new Color(0.60f, 0.52f, 0.82f), // 256 — лавандово-синий
+                new Color(0.88f, 0.56f, 0.64f), // 512 — розово-коралловый
+                new Color(0.46f, 0.70f, 0.86f), // 1024 — небесный
+                new Color(0.82f, 0.42f, 0.58f), // 2048 — мягкий малиновый
 
-                // 4096 – 65536 (более «редкие» значения)
-                new Color(0.35f, 0.95f, 0.60f), // 4096 — салатово-зелёный
-                new Color(0.65f, 0.35f, 0.95f), // 8192 — фиолетовый
-                new Color(0.95f, 0.55f, 0.20f), // 16384 — насыщенный оранжевый
-                new Color(0.20f, 0.65f, 0.95f), // 32768 — холодный синий
-                new Color(0.95f, 0.30f, 0.30f), // 65536 — красный
+                // 4096 – 65536
+                new Color(0.50f, 0.78f, 0.62f), // 4096 — зелёный чай
+                new Color(0.66f, 0.52f, 0.84f), // 8192 — фиолетовый
+                new Color(0.90f, 0.62f, 0.40f), // 16384 — тёплый апельсиновый
+                new Color(0.42f, 0.62f, 0.84f), // 32768 — холодный синий
+                new Color(0.86f, 0.46f, 0.46f), // 65536 — красный кирпич
 
-                // 131072+ (почти «легендарные»)
-                new Color(0.30f, 0.90f, 0.80f), // 131072 — бирюзовый
-                new Color(0.80f, 0.30f, 0.95f), // 262144 — неоновый фиолетовый
-                new Color(0.95f, 0.85f, 0.25f), // 524288 — золото
-                new Color(0.25f, 0.45f, 0.95f), // 1048576 — глубокий синий
-                new Color(0.95f, 0.25f, 0.70f), // 2097152 — яркий розовый
+                // 131072+
+                new Color(0.48f, 0.78f, 0.74f), // 131072 — бирюза
+                new Color(0.70f, 0.50f, 0.86f), // 262144 — фиолетовый
+                new Color(0.92f, 0.82f, 0.50f), // 524288 — приглушённое золото
+                new Color(0.40f, 0.52f, 0.78f), // 1048576 — глубокий синий
+                new Color(0.88f, 0.48f, 0.70f), // 2097152 — розово-сливовый
             };
             
             Debug.Log($"Initialized valueColors with {valueColors.Length} colors");
@@ -82,7 +83,10 @@ public class Cube : MonoBehaviour
         spriteRenderer = GetComponent<SpriteRenderer>();
         
         if (textMesh != null)
+        {
             originalFontSize = textMesh.fontSize;
+            textOriginalRotation = textMesh.transform.rotation;
+        }
             
         if (spriteRenderer == null)
             spriteRenderer = GetComponent<SpriteRenderer>();
@@ -104,6 +108,18 @@ public class Cube : MonoBehaviour
         {
             mergeCheckTimer = 0f;
             CheckForMerges();
+        }
+        
+        // Держим текст в правильном положении
+        KeepTextUpright();
+    }
+    
+    void KeepTextUpright()
+    {
+        if (textMesh != null)
+        {
+            // Всегда держим текст в оригинальной ротации (не поворачиваем с кубиком)
+            textMesh.transform.rotation = textOriginalRotation;
         }
     }
     
@@ -235,11 +251,11 @@ public class Cube : MonoBehaviour
         switch (specialType)
         {
             case SpecialCubeType.Plus:
-                return "+";
+                return "X2";
             case SpecialCubeType.Minus:
-                return "-";
+                return "X / 2";
             case SpecialCubeType.Death:
-                return "×";
+                return "0";
             default:
                 Debug.LogWarning($"GetSpecialCubeText: Unknown specialType={specialType}");
                 return "?";
@@ -251,9 +267,9 @@ public class Cube : MonoBehaviour
         switch (specialType)
         {
             case SpecialCubeType.Plus:
-                return Color.green;
+                return new Color(0.3f, 0.7f, 0.3f); // Менее яркий зеленый
             case SpecialCubeType.Minus:
-                return Color.red;
+                return new Color(0.7f, 0.3f, 0.3f); // Менее яркий красный
             case SpecialCubeType.Death:
                 return Color.white; // Белый кубик смерти
             default:
@@ -275,51 +291,8 @@ public class Cube : MonoBehaviour
     
     void SetupSpecialCubeAppearance()
     {
-        // Делаем кубик ромбовидным через поворот спрайта
-        if (spriteRenderer != null)
-        {
-            // Создаем материал с поддержкой скругленных углов
-            Material roundedMaterial = new Material(Shader.Find("Sprites/Default"));
-            spriteRenderer.material = roundedMaterial;
-            
-            // Добавляем эффект скругления через цвет и прозрачность краев
-            Color currentColor = spriteRenderer.color;
-            spriteRenderer.color = new Color(currentColor.r, currentColor.g, currentColor.b, 0.95f);
-            
-            // Поворачиваем спрайт на 45 градусов чтобы получился ромб
-            spriteRenderer.transform.rotation = Quaternion.Euler(0f, 0f, 45f);
-            
-            // Немного уменьшаем масштаб чтобы ромб не был слишком большим
-            transform.localScale = new Vector3(0.85f, 0.85f, 1f);
-            
-            // Возвращаем текст в нормальное положение
-            if (textMesh != null)
-            {
-                textMesh.transform.rotation = Quaternion.Euler(0f, 0f, 0f);
-            }
-        }
-        
-        // Увеличиваем шрифт для спецкубиков - отключаем auto-size и устанавливаем размер
-        if (textMesh != null)
-        {
-            // Отключаем автоматический размер
-            textMesh.enableAutoSizing = false;
-            
-            // Устанавливаем большой размер шрифта
-            textMesh.fontSize = Mathf.Max(8f, originalFontSize * 1.5f);
-            textMesh.fontStyle = FontStyles.Bold;
-            
-            // Увеличиваем сам текстовый объект для лучшей видимости
-            textMesh.transform.localScale = new Vector3(1.2f, 1.2f, 1f);
-            
-            // Выравниваем текст по центру вертикально
-            textMesh.alignment = TextAlignmentOptions.Center;
-            
-            // Корректируем позицию текста для лучшего центрирования
-            Vector3 textPosition = textMesh.transform.localPosition;
-            textPosition.y = 0f; // Устанавливаем точно в центр по Y
-            textMesh.transform.localPosition = textPosition;
-        }
+        // Спецкубики выглядят как обычные - только цвет отличается
+        // Никаких поворотов, масштабов или изменений шрифта
     }
     
     private Color GetContrastColor(Color backgroundColor)
@@ -492,12 +465,8 @@ public class Cube : MonoBehaviour
             textMesh.transform.localScale = new Vector3(1f, 1f, 1f);
         }
         
-        // Восстанавливаем оригинальный масштаб и поворот кубика
+        // Восстанавливаем оригинальный масштаб кубика
         transform.localScale = new Vector3(1f, 1f, 1f);
-        if (spriteRenderer != null)
-        {
-            spriteRenderer.transform.rotation = Quaternion.Euler(0f, 0f, 0f);
-        }
         
         UpdateVisual();
     }

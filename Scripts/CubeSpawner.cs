@@ -31,6 +31,8 @@ public class CubeSpawner : MonoBehaviour
     [SerializeField] KeyCode vortexKey = KeyCode.V;
     private Vortex currentVortex;
     
+    private bool isKeyboardControl = false;
+    
     void Start()
     {
         mainCamera = Camera.main;
@@ -41,6 +43,7 @@ public class CubeSpawner : MonoBehaviour
     void Update()
     {
         HandleInput();
+        HandleKeyboardInput();
         HandleVortexInput();
         UpdatePreviewPosition();
     }
@@ -51,6 +54,7 @@ public class CubeSpawner : MonoBehaviour
         if (Input.GetMouseButtonDown(0))
         {
             isTouching = true;
+            isKeyboardControl = false; // Переключаемся на управление мышью
         }
         else if (Input.GetMouseButtonUp(0))
         {
@@ -65,6 +69,7 @@ public class CubeSpawner : MonoBehaviour
             if (touch.phase == TouchPhase.Began)
             {
                 isTouching = true;
+                isKeyboardControl = false; // Переключаемся на управление касанием
             }
             else if (touch.phase == TouchPhase.Ended)
             {
@@ -86,26 +91,38 @@ public class CubeSpawner : MonoBehaviour
     {
         if (previewCube == null) return;
         
-        Vector2 inputPosition;
+        // Если используется управление клавиатурой, не меняем позицию
+        if (isKeyboardControl) return;
         
-        // Получаем позицию ввода (мышь или касание)
-        if (Input.touchCount > 0)
+        if (isTouching)
         {
-            inputPosition = Input.GetTouch(0).position;
+            Vector2 inputPosition;
+            
+            // Получаем позицию ввода (мышь или касание)
+            if (Input.touchCount > 0)
+            {
+                inputPosition = Input.GetTouch(0).position;
+            }
+            else
+            {
+                inputPosition = Input.mousePosition;
+            }
+            
+            // Конвертируем в мировые координаты
+            Vector2 worldPosition = mainCamera.ScreenToWorldPoint(inputPosition);
+            
+            // Ограничиваем по оси X в пределах игрового поля
+            float clampedX = Mathf.Clamp(worldPosition.x, minXPosition, maxXPosition);
+            
+            // Устанавливаем позицию превью - следует за мышью/пальцем
+            previewCube.transform.position = new Vector2(clampedX, spawnYPosition);
         }
         else
         {
-            inputPosition = Input.mousePosition;
+            // Если кнопка не нажата, кубик стоит по центру
+            float centerX = (minXPosition + maxXPosition) / 2f;
+            previewCube.transform.position = new Vector2(centerX, spawnYPosition);
         }
-        
-        // Конвертируем в мировые координаты
-        Vector2 worldPosition = mainCamera.ScreenToWorldPoint(inputPosition);
-        
-        // Ограничиваем по оси X в пределах игрового поля
-        float clampedX = Mathf.Clamp(worldPosition.x, minXPosition, maxXPosition);
-        
-        // Устанавливаем позицию превью - кубик всегда следует за мышью/пальцем
-        previewCube.transform.position = new Vector2(clampedX, spawnYPosition);
     }
     
     void CreatePreviewCube()
@@ -270,55 +287,8 @@ public class CubeSpawner : MonoBehaviour
     
     void SetupSpecialCubeAppearance(Cube cubeScript)
     {
-        // Делаем кубик ромбовидным через поворот спрайта
-        SpriteRenderer spriteRenderer = cubeScript.GetComponent<SpriteRenderer>();
-        if (spriteRenderer != null)
-        {
-            // Создаем материал с поддержкой скругленных углов
-            Material roundedMaterial = new Material(Shader.Find("Sprites/Default"));
-            spriteRenderer.material = roundedMaterial;
-            
-            // Добавляем эффект скругления через цвет и прозрачность краев
-            Color currentColor = spriteRenderer.color;
-            spriteRenderer.color = new Color(currentColor.r, currentColor.g, currentColor.b, 0.95f);
-            
-            // Поворачиваем спрайт на 45 градусов чтобы получился ромб
-            spriteRenderer.transform.rotation = Quaternion.Euler(0f, 0f, 45f);
-            
-            // Немного уменьшаем масштаб чтобы ромб не был слишком большим
-            cubeScript.transform.localScale = new Vector3(0.85f, 0.85f, 1f);
-            
-            // Возвращаем текст в нормальное положение
-            TextMeshPro textMesh = cubeScript.GetComponentInChildren<TextMeshPro>();
-            if (textMesh != null)
-            {
-                textMesh.transform.rotation = Quaternion.Euler(0f, 0f, 0f);
-            }
-        }
-        
-        // Увеличиваем шрифт для спецкубиков - отключаем auto-size и устанавливаем размер
-        TextMeshPro textMeshComponent = cubeScript.GetComponentInChildren<TextMeshPro>();
-        if (textMeshComponent != null)
-        {
-            // Отключаем автоматический размер
-            textMeshComponent.enableAutoSizing = false;
-            
-            // Устанавливаем большой размер шрифта
-            float originalFontSize = textMeshComponent.fontSize;
-            textMeshComponent.fontSize = Mathf.Max(8f, originalFontSize * 1.5f);
-            textMeshComponent.fontStyle = TMPro.FontStyles.Bold;
-            
-            // Увеличиваем сам текстовый объект для лучшей видимости
-            textMeshComponent.transform.localScale = new Vector3(1.2f, 1.2f, 1f);
-            
-            // Выравниваем текст по центру вертикально
-            textMeshComponent.alignment = TextAlignmentOptions.Center;
-            
-            // Корректируем позицию текста для лучшего центрирования
-            Vector3 textPosition = textMeshComponent.transform.localPosition;
-            textPosition.y = 0f; // Устанавливаем точно в центр по Y
-            textMeshComponent.transform.localPosition = textPosition;
-        }
+        // Спецкубики выглядят как обычные - только цвет отличается
+        // Никаких поворотов, масштабов или изменений шрифта
     }
     
     void SetupFallingCube(GameObject cube)
@@ -385,6 +355,51 @@ public class CubeSpawner : MonoBehaviour
         }
     }
     
+    void HandleKeyboardInput()
+    {
+        // Проверяем нажатия клавиш движения
+        bool isMoving = (Input.GetKey(KeyCode.A) || Input.GetKey(KeyCode.LeftArrow) ||
+                       Input.GetKey(KeyCode.D) || Input.GetKey(KeyCode.RightArrow) ||
+                       Input.GetKey(KeyCode.W));
+        
+        if (isMoving)
+        {
+            isKeyboardControl = true;
+        }
+        
+        // Движение превью кубика клавиатурой
+        if (previewCube != null)
+        {
+            float moveSpeed = 5f; // Скорость движения
+            Vector3 currentPos = previewCube.transform.position;
+            
+            // WASD и стрелки для движения
+            if (Input.GetKey(KeyCode.A) || Input.GetKey(KeyCode.LeftArrow))
+            {
+                currentPos.x -= moveSpeed * Time.deltaTime;
+            }
+            if (Input.GetKey(KeyCode.D) || Input.GetKey(KeyCode.RightArrow))
+            {
+                currentPos.x += moveSpeed * Time.deltaTime;
+            }
+            
+            // Ограничиваем движение в пределах игровой области
+            currentPos.x = Mathf.Clamp(currentPos.x, minXPosition, maxXPosition);
+            
+            previewCube.transform.position = currentPos;
+        }
+        
+        // Сброс кубика по пробелу, стрелке вниз или клавише S
+        if (Input.GetKeyDown(KeyCode.Space) || Input.GetKeyDown(KeyCode.DownArrow) || Input.GetKeyDown(KeyCode.S))
+        {
+            if (previewCube != null)
+            {
+                SpawnFallingCube();
+                isKeyboardControl = false; // Сбрасываем флаг после сброса
+            }
+        }
+    }
+    
     void HandleVortexInput()
     {
         // Активация вихря по клавише V
@@ -409,7 +424,8 @@ public class CubeSpawner : MonoBehaviour
         }
         
         // Получаем позицию мыши в мире
-        Vector2 mousePosition = mainCamera.ScreenToWorldPoint(Input.mousePosition);
+        Vector3 mousePosition = mainCamera.ScreenToWorldPoint(Input.mousePosition);
+        mousePosition.z = 0f;
         
         // Проверяем что клик в пределах игровой области
         if (mousePosition.x >= minXPosition && mousePosition.x <= maxXPosition)
