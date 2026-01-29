@@ -34,6 +34,7 @@ public class Cube : MonoBehaviour
     }
     
     public int Value => value;
+    public bool IsSpecialCube => isSpecialCube;
     
     void Start()
     {

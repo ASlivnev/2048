@@ -327,22 +327,44 @@ public class CubeSpawner : MonoBehaviour
     
     int GetRandomValue()
     {
-        // Создаем массив всех возможных значений от 2 до максимума
-        List<int> possibleValues = new List<int>();
+        // Проверяем количество кубиков на сцене
+        Cube[] allCubes = FindObjectsOfType<Cube>();
+        int normalCubeCount = 0;
+        
+        // Собираем значения обычных кубиков (не спец)
+        HashSet<int> existingValues = new HashSet<int>();
+        foreach (Cube cube in allCubes)
+        {
+            if (!cube.IsSpecialCube)
+            {
+                normalCubeCount++;
+                existingValues.Add(cube.Value);
+            }
+        }
+        
+        // Если кубиков больше 9, генерируем только из существующих значений
+        if (normalCubeCount > 9 && existingValues.Count > 0)
+        {
+            List<int> possibleValues = new List<int>(existingValues);
+            return possibleValues[Random.Range(0, possibleValues.Count)];
+        }
+        
+        // Иначе генерируем как обычно - все значения от 2 до максимума
+        List<int> allPossibleValues = new List<int>();
         
         // Добавляем все значения от 2 до максимума, удваивая каждый раз
         int currentValue = 2;
         while (currentValue <= maxCubeValue)
         {
-            possibleValues.Add(currentValue);
+            allPossibleValues.Add(currentValue);
             currentValue *= 2;
         }
         
-        if (possibleValues.Count == 0)
+        if (allPossibleValues.Count == 0)
             return 2;
             
         // Возвращаем случайное значение - все равновероятны
-        return possibleValues[Random.Range(0, possibleValues.Count)];
+        return allPossibleValues[Random.Range(0, allPossibleValues.Count)];
     }
     
     // Статический метод для обновления максимального значения
