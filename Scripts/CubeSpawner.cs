@@ -38,6 +38,9 @@ public class CubeSpawner : MonoBehaviour
         mainCamera = Camera.main;
         nextValue = GetRandomValue();
         CreatePreviewCube();
+        
+        // Сбрасываем счет при начале новой игры
+        ScoreManager.ResetScore();
     }
     
     void Update()

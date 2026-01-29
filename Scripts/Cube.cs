@@ -451,6 +451,9 @@ public class Cube : MonoBehaviour
                 otherCube.UpdateVisual();
                 CubeSpawner.UpdateMaxCubeValue(otherCube.value);
                 
+                // Добавляем очки за спецкубик
+                ScoreManager.AddSpecialCubeScore("Plus", otherCube.value);
+                
                 // Воспроизводим эффект на кубике, с которым взаимодействовали
                 otherCube.PlayMergeEffect();
                 
@@ -462,10 +465,14 @@ public class Cube : MonoBehaviour
                 originalValue = otherCube.value;
                 int newValue = otherCube.value / 2;
                 
+                // Добавляем очки за спецкубик
+                ScoreManager.AddSpecialCubeScore("Minus", originalValue);
+                
                 if (newValue < 2)
                 {
-                    // Если результат меньше 2, уничтожаем кубик
+                    // Если результат меньше 2, уничтожаем кубик с эффектом смерти
                     Debug.Log($"Minus cube: {originalValue} -> destroyed (too small)");
+                    PlayDeathEffect(otherCube);
                     Destroy(otherCube.gameObject);
                 }
                 else
@@ -481,6 +488,9 @@ public class Cube : MonoBehaviour
                 break;
                 
             case SpecialCubeType.Death:
+                // Добавляем очки за спецкубик
+                ScoreManager.AddSpecialCubeScore("Death", otherCube.value);
+                
                 // Создаем эффект смерти между кубиками
                 PlayDeathEffect(otherCube);
                 
@@ -490,6 +500,9 @@ public class Cube : MonoBehaviour
                 break;
                 
             case SpecialCubeType.Grow:
+                // Добавляем очки за спецкубик
+                ScoreManager.AddSpecialCubeScore("Grow", otherCube.value);
+                
                 // Увеличиваем физический размер другого кубика в 2 раза
                 Vector3 currentScale = otherCube.transform.localScale;
                 Vector3 newScale = currentScale * 2f;
@@ -503,6 +516,9 @@ public class Cube : MonoBehaviour
                 break;
                 
             case SpecialCubeType.Shrink:
+                // Добавляем очки за спецкубик
+                ScoreManager.AddSpecialCubeScore("Shrink", otherCube.value);
+                
                 // Уменьшаем физический размер другого кубика в 2 раза
                 currentScale = otherCube.transform.localScale;
                 newScale = currentScale / 2f;
@@ -511,8 +527,9 @@ public class Cube : MonoBehaviour
                 float minScale = 0.3f;
                 if (newScale.x < minScale)
                 {
-                    // Если результат меньше минимума, уничтожаем кубик
+                    // Если результат меньше минимума, уничтожаем кубик с эффектом смерти
                     Debug.Log($"Shrink cube (><): scale {currentScale} -> destroyed (too small)");
+                    PlayDeathEffect(otherCube);
                     Destroy(otherCube.gameObject);
                 }
                 else
@@ -524,11 +541,17 @@ public class Cube : MonoBehaviour
                 break;
                 
             case SpecialCubeType.Freeze:
+                // Добавляем очки за спецкубик
+                ScoreManager.AddSpecialCubeScore("Freeze", otherCube.value);
+                
                 // Замораживаем другой кубик
                 FreezeCube(otherCube);
                 break;
                 
             case SpecialCubeType.Vortex:
+                // Добавляем очки за спецкубик
+                ScoreManager.AddSpecialCubeScore("Vortex", otherCube.value);
+                
                 // Создаем вихрь между кубиками
                 CreateVortexEffect(otherCube);
                 break;
@@ -754,6 +777,9 @@ public class Cube : MonoBehaviour
         // Удваиваем значение
         value *= 2;
         UpdateVisual();
+        
+        // Добавляем очки за слияние
+        ScoreManager.AddMergeScore(value);
         
         // Воспроизводим эффект слияния с цветом кубика
         PlayMergeEffect();
