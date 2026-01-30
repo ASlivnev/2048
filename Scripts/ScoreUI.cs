@@ -53,9 +53,9 @@ public class ScoreUI : MonoBehaviour
             return $"{score / 1000} K";
         else if (score < 1000000000)
             return $"{score / 1000000} M";
-        else if (score < 1000000000000)
+        else if (score < 1000000000L)
             return $"{score / 1000000000} B";
         else
-            return $"{score / 1000000000000} T";
+            return $"{score / 1000000000L} T";
     }
 }

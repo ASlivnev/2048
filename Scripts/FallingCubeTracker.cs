@@ -4,6 +4,7 @@ public class FallingCubeTracker : MonoBehaviour
 {
     private Rigidbody2D rb;
     private bool isFalling = true;
+    private bool hasCollided = false;
     private float checkInterval = 0.1f;
     private float checkTimer = 0f;
     private Vector2 lastPosition;
@@ -35,32 +36,61 @@ public class FallingCubeTracker : MonoBehaviour
         Vector2 currentPosition = rb.position;
         Vector2 velocity = rb.velocity;
         
-        // Проверяем если кубик почти остановился (скорость очень мала)
-        bool isAlmostStopped = Mathf.Abs(velocity.y) < 0.1f && 
-                               Mathf.Abs(velocity.x) < 0.1f;
-        
-        // ИЛИ если позиция почти не меняется
-        bool isNotMoving = Vector2.Distance(currentPosition, lastPosition) < minMovementThreshold;
-        
-        if (isAlmostStopped && isNotMoving)
+        // Если уже было столкновение - разрешаем спаун при минимальном движении
+        if (hasCollided)
         {
-            // Кубик приземлился
-            isFalling = false;
+            bool isAlmostStopped = Mathf.Abs(velocity.y) < 0.5f && 
+                                   Mathf.Abs(velocity.x) < 0.5f;
             
-            // Сообщаем спаунеру что кубик приземлился
-            if (CubeSpawner.Instance != null)
+            if (isAlmostStopped)
             {
-                CubeSpawner.Instance.OnCubeLanded();
+                // Кубик достаточно замедлился после столкновения
+                isFalling = false;
+                
+                if (CubeSpawner.Instance != null)
+                {
+                    CubeSpawner.Instance.OnCubeLanded();
+                }
+                
+                Debug.Log("FallingCubeTracker: Cube slowed down after collision");
+                Destroy(this);
+                return;
             }
-            
-            Debug.Log("FallingCubeTracker: Cube has landed");
-            
-            // Уничтожаем этот компонент так как он больше не нужен
-            Destroy(this);
         }
         else
         {
-            lastPosition = currentPosition;
+            // Проверяем если кубик почти остановился (старая логика для первого кубика)
+            bool isAlmostStopped = Mathf.Abs(velocity.y) < 0.1f && 
+                                   Mathf.Abs(velocity.x) < 0.1f;
+            
+            bool isNotMoving = Vector2.Distance(currentPosition, lastPosition) < minMovementThreshold;
+            
+            if (isAlmostStopped && isNotMoving)
+            {
+                // Первый кубик приземлился без столкновений
+                isFalling = false;
+                
+                if (CubeSpawner.Instance != null)
+                {
+                    CubeSpawner.Instance.OnCubeLanded();
+                }
+                
+                Debug.Log("FallingCubeTracker: Cube has landed without collision");
+                Destroy(this);
+                return;
+            }
+        }
+        
+        lastPosition = currentPosition;
+    }
+    
+    void OnCollisionEnter2D(Collision2D collision)
+    {
+        // Отмечаем что было столкновение
+        if (!hasCollided && isFalling)
+        {
+            hasCollided = true;
+            Debug.Log("FallingCubeTracker: First collision detected");
         }
     }
 }

@@ -1,585 +1,289 @@
-using System.Collections;
 using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
 
 public class CubeSpawner : MonoBehaviour
 {
+    public static CubeSpawner Instance { get; private set; }
+
     [Header("Spawn Settings")]
     [SerializeField] private GameObject cubePrefab;
     [SerializeField] private float spawnYPosition = 4.5f;
     [SerializeField] private float minXPosition = -3f;
     [SerializeField] private float maxXPosition = 3f;
     [SerializeField] private float fallForce = 2f;
-    
-    [Header("Cube Values")]
-    [SerializeField] private int[] basePossibleValues = {2, 2, 2, 4, 4, 8};
-    
-    public static CubeSpawner Instance { get; private set; }
-    
-    public int MaxCubeValue { get; private set; } = 2;
-    
-    private Camera mainCamera;
-    private GameObject previewCube;
-    private bool isTouching = false;
-    private int nextValue;
-    private int maxCubeValue = 8; // Начальный максимум
-    
+
     [Header("Special Cubes")]
-    [SerializeField] int specialCubeInterval = 5; // Через сколько ходов спецкубик
-    private int spawnCounter = 0;
-    private int specialCubeIndex = 0; // 0=Plus, 1=Minus, 2=Death, 3=Grow, 4=Shrink, 5=Freeze, 6=Vortex
-    
-    [Header("Vortex System")]
-    [SerializeField] GameObject vortexPrefab;
-    [SerializeField] KeyCode vortexKey = KeyCode.V;
-    private Vortex currentVortex;
-    
-    private bool isKeyboardControl = false;
-    private bool hasFallingCube = false; // Есть ли падающий кубик
-    private float previewHideTimer = 0f; // Таймер скрытия превью
-    private float previewHideDuration = 0.3f; // Длительность скрытия
-    
-    void Start()
+    [SerializeField] private int specialCubeInterval = 5;
+
+    private Camera mainCamera;
+
+    private GameObject previewCube;
+    private SpriteRenderer previewRenderer;
+    private float currentX;
+
+    private bool isTouching;
+    private bool isKeyboardControl;
+
+    private int nextValue;
+    private int spawnCounter;
+    private int specialCubeIndex;
+
+    private int maxCubeValue = 8;
+    public int MaxCubeValue { get; private set; } = 2;
+
+    #region Unity
+
+    private void Awake()
     {
-        // Singleton pattern
-        if (Instance == null)
-        {
-            Instance = this;
-        }
-        else
+        if (Instance != null)
         {
             Destroy(gameObject);
             return;
         }
-        
-        mainCamera = Camera.main;
-        nextValue = GetRandomValue();
-        CreatePreviewCube();
-        
-        // НЕ сбрасываем счет здесь - ScoreManager сам управляет счетом в Start()
-        // ScoreManager.ResetScore();
+        Instance = this;
     }
-    
-    void Update()
+
+    private void Start()
     {
-        // Проверяем Game Over
+        mainCamera = Camera.main;
+
+        nextValue = GetRandomValue();
+        currentX = (minXPosition + maxXPosition) * 0.5f;
+
+        CreatePreview();
+    }
+
+    private void Update()
+    {
         if (GameOverManager.IsGameOver)
         {
-            // Скрываем превью при Game Over
-            if (previewCube != null && previewCube.activeInHierarchy)
-            {
-                previewCube.SetActive(false);
-            }
-            return; // Блокируем все управление
+            SetPreviewAlpha(0f);
+            return;
         }
-        
-        // Обновляем таймер скрытия превью
-        if (previewHideTimer > 0f)
-        {
-            previewHideTimer -= Time.deltaTime;
-            
-            // Скрываем превью пока таймер не истек
-            if (previewCube != null && previewCube.activeInHierarchy)
-            {
-                previewCube.SetActive(false);
-            }
-        }
-        else
-        {
-            // Показываем превью после истечения таймера
-            if (previewCube != null && !previewCube.activeInHierarchy)
-            {
-                previewCube.SetActive(true);
-            }
-        }
-        
-        HandleInput();
+
+        HandlePointerInput();
         HandleKeyboardInput();
-        HandleVortexInput();
         UpdatePreviewPosition();
     }
-    
-    void HandleInput()
+
+    #endregion
+
+    #region Input
+
+    private void HandlePointerInput()
     {
-        // Блокируем управление при Game Over
-        if (GameOverManager.IsGameOver) return;
-        
-        // Блокируем управление пока превью скрыто
-        if (previewHideTimer > 0f) return;
-        
-        // Обработка мыши для Unity Editor
         if (Input.GetMouseButtonDown(0))
         {
             isTouching = true;
-            isKeyboardControl = false; // Переключаемся на управление мышью
+            isKeyboardControl = false;
         }
-        else if (Input.GetMouseButtonUp(0))
+
+        if (Input.GetMouseButtonUp(0))
         {
-            EndTouch();
+            ReleaseCube();
         }
-        
-        // Обработка касаний для мобильных устройств
-        if (Input.touchCount > 0 && !GameOverManager.IsGameOver && previewHideTimer <= 0f)
+
+        if (Input.touchCount > 0)
         {
-            Touch touch = Input.GetTouch(0);
-            
-            if (touch.phase == TouchPhase.Began)
+            Touch t = Input.GetTouch(0);
+
+            if (t.phase == TouchPhase.Began)
             {
                 isTouching = true;
-                isKeyboardControl = false; // Переключаемся на управление касанием
+                isKeyboardControl = false;
             }
-            else if (touch.phase == TouchPhase.Ended)
+            else if (t.phase == TouchPhase.Ended)
             {
-                EndTouch();
+                ReleaseCube();
             }
         }
     }
-    
-    void EndTouch()
+
+    private void HandleKeyboardInput()
     {
-        // Блокируем спаун при Game Over
-        if (GameOverManager.IsGameOver) return;
-        
-        if (isTouching && previewCube != null)
+        // Движение влево-вправо
+        if (Input.GetKey(KeyCode.A) || Input.GetKey(KeyCode.LeftArrow))
         {
-            SpawnFallingCube();
-            isTouching = false;
+            currentX -= 6f * Time.deltaTime;
+            isKeyboardControl = true;
+        }
+
+        if (Input.GetKey(KeyCode.D) || Input.GetKey(KeyCode.RightArrow))
+        {
+            currentX += 6f * Time.deltaTime;
+            isKeyboardControl = true;
+        }
+
+        currentX = Mathf.Clamp(currentX, minXPosition, maxXPosition);
+
+        // Спаун при нажатии кнопок
+        if (Input.GetKeyDown(KeyCode.DownArrow) ||
+            Input.GetKeyDown(KeyCode.S) ||
+            Input.GetKeyDown(KeyCode.Space))
+        {
+            SpawnCube();
+            isKeyboardControl = false;
         }
     }
-    
-    void UpdatePreviewPosition()
+
+    #endregion
+
+    #region Preview
+
+    private void CreatePreview()
     {
-        if (previewCube == null) return;
+        if (previewCube != null)
+            Destroy(previewCube);
+
+        previewCube = Instantiate(
+            cubePrefab,
+            new Vector2(currentX, spawnYPosition),
+            Quaternion.identity
+        );
+
+        previewRenderer = previewCube.GetComponent<SpriteRenderer>();
+        previewRenderer.sortingOrder = 0; // Спрайт под текстом
         
-        // Если используется управление клавиатурой, не меняем позицию
-        if (isKeyboardControl) return;
+        // Настраиваем текст чтобы он был поверх спрайта
+        TextMeshPro textMesh = previewCube.GetComponentInChildren<TextMeshPro>();
+        if (textMesh != null)
+        {
+            textMesh.sortingOrder = 100; // Текст поверх спрайта
+        }
         
-        if (isTouching)
-        {
-            Vector2 inputPosition;
-            
-            // Получаем позицию ввода (мышь или касание)
-            if (Input.touchCount > 0)
-            {
-                inputPosition = Input.GetTouch(0).position;
-            }
-            else
-            {
-                inputPosition = Input.mousePosition;
-            }
-            
-            // Конвертируем в мировые координаты
-            Vector2 worldPosition = mainCamera.ScreenToWorldPoint(inputPosition);
-            
-            // Ограничиваем по оси X в пределах игрового поля
-            float clampedX = Mathf.Clamp(worldPosition.x, minXPosition, maxXPosition);
-            
-            // Устанавливаем позицию превью - следует за мышью/пальцем
-            previewCube.transform.position = new Vector2(clampedX, spawnYPosition);
-        }
-        else
-        {
-            // Если кнопка не нажата, кубик стоит по центру
-            float centerX = (minXPosition + maxXPosition) / 2f;
-            previewCube.transform.position = new Vector2(centerX, spawnYPosition);
-        }
+        SetPreviewAlpha(0.7f); // Увеличена прозрачность для лучшей видимости
+
+        Rigidbody2D rb = previewCube.GetComponent<Rigidbody2D>();
+        rb.simulated = false;
+
+        Cube cube = previewCube.GetComponent<Cube>();
+        cube.SetCanMerge(false);
+
+        SetupPreviewValue(cube);
     }
-    
-    void CreatePreviewCube()
+
+    private void SetupPreviewValue(Cube cube)
     {
-        // Создаем новый превью кубик
-        previewCube = Instantiate(cubePrefab, new Vector2(0, spawnYPosition), Quaternion.identity);
-        
-        // Проверяем, будет ли следующий кубик спецкубиком
         if (spawnCounter + 1 >= specialCubeInterval)
         {
-            // Следующий будет спецкубик - настраиваем превью как спецкубик
-            Cube cubeScript = previewCube.GetComponent<Cube>();
-            if (cubeScript != null)
-            {
-                Cube.SpecialCubeType type;
-                switch (specialCubeIndex)
-                {
-                    case 0:
-                        type = Cube.SpecialCubeType.Plus;
-                        break;
-                    case 1:
-                        type = Cube.SpecialCubeType.Minus;
-                        break;
-                    case 2:
-                        type = Cube.SpecialCubeType.Death;
-                        break;
-                    case 3:
-                        type = Cube.SpecialCubeType.Grow;
-                        break;
-                    case 4:
-                        type = Cube.SpecialCubeType.Shrink;
-                        break;
-                    case 5:
-                        type = Cube.SpecialCubeType.Freeze;
-                        break;
-                    case 6:
-                        type = Cube.SpecialCubeType.Vortex;
-                        break;
-                    default:
-                        type = Cube.SpecialCubeType.Plus;
-                        break;
-                }
-                cubeScript.SetSpecialCube(type);
-                
-                // Применяем настройки внешнего вида и для превью
-                SetupSpecialCubeAppearance(cubeScript);
-            }
+            // Пропускаем None (0) и используем только рабочие спецкубики (1-7)
+            int workingSpecialIndex = specialCubeIndex % 7 + 1; // 1-7 вместо 0-6
+            cube.SetSpecialCube((Cube.SpecialCubeType)workingSpecialIndex);
         }
         else
         {
-            // Обычный кубик - устанавливаем значение сразу как спецкубики
-            Cube cubeScript = previewCube.GetComponent<Cube>();
-            if (cubeScript != null)
-            {
-                cubeScript.SetValue(nextValue);
-            }
+            cube.SetValue(nextValue);
         }
-        
-        // Общая настройка превью для всех типов
-        SetupPreviewCube();
     }
-    
-        
-    void SetupPreviewCube()
+
+    private void UpdatePreviewPosition()
     {
-        if (previewCube == null) return;
-        
-        // Отключаем физику для превью
-        Rigidbody2D rb = previewCube.GetComponent<Rigidbody2D>();
-        if (rb != null)
+        if (previewCube == null)
+            return;
+
+        if (isTouching)
         {
-            rb.simulated = false;
-            rb.velocity = Vector2.zero;
-            rb.angularVelocity = 0f;
+            Vector2 screenPos =
+                Input.touchCount > 0
+                ? Input.GetTouch(0).position
+                : (Vector2)Input.mousePosition;
+
+            Vector2 worldPos = mainCamera.ScreenToWorldPoint(screenPos);
+            currentX = Mathf.Clamp(worldPos.x, minXPosition, maxXPosition);
         }
-        
-                
-        // Отключаем слияния для превью
-        Cube cube = previewCube.GetComponent<Cube>();
-        if (cube != null)
-        {
-            // Просто блокируем слияния без отключения скрипта
-            cube.SetCanMerge(false);
-        }
-        
-        // Устанавливаем слой для превью если нужно
-        // previewCube.layer = LayerMask.NameToLayer("Preview");
+
+        previewCube.transform.position =
+            new Vector2(currentX, spawnYPosition);
     }
-    
-    void SpawnFallingCube()
+
+    private void SetPreviewAlpha(float a)
     {
-        if (previewCube == null) return;
-        
-        // Блокируем спаун при Game Over
-        if (GameOverManager.IsGameOver) return;
-        
-        // Устанавливаем таймер скрытия превью
-        previewHideTimer = previewHideDuration;
-        
-        // Сохраняем позицию превью
-        Vector2 spawnPosition = previewCube.transform.position;
-        
-        // Уничтожаем превью
-        Destroy(previewCube);
-        
-        // Создаем падающий кубик
-        GameObject fallingCube = Instantiate(cubePrefab, spawnPosition, Quaternion.identity);
-        
-                
-        // Добавляем трекер для отслеживания приземления
-        fallingCube.AddComponent<FallingCubeTracker>();
-        
-        Cube cubeScript = fallingCube.GetComponent<Cube>();
-        if (cubeScript != null)
+        if (previewRenderer == null) return;
+        Color c = previewRenderer.color;
+        c.a = a;
+        previewRenderer.color = c;
+    }
+
+    #endregion
+
+    #region Spawn
+
+    private void ReleaseCube()
+    {
+        if (!isTouching && !isKeyboardControl) return;
+
+        SpawnCube();
+        isTouching = false;
+    }
+
+    private void SpawnCube()
+    {
+        Vector2 spawnPos = new Vector2(currentX, spawnYPosition);
+        GameObject cubeObj = Instantiate(cubePrefab, spawnPos, Quaternion.identity);
+
+        cubeObj.AddComponent<FallingCubeTracker>();
+
+        Rigidbody2D rb = cubeObj.GetComponent<Rigidbody2D>();
+        rb.simulated = true;
+        rb.velocity = Vector2.zero;
+        rb.AddForce(Vector2.down * fallForce, ForceMode2D.Impulse);
+
+        Cube cube = cubeObj.GetComponent<Cube>();
+
+        spawnCounter++;
+
+        if (spawnCounter >= specialCubeInterval)
         {
-            // Проверяем, нужно ли создать спецкубик
-            spawnCounter++;
-            Debug.Log($"Spawn counter: {spawnCounter}, interval: {specialCubeInterval}");
-            
-            if (spawnCounter >= specialCubeInterval)
-            {
-                spawnCounter = 0;
-                Debug.Log($"Creating special cube, index: {specialCubeIndex}");
-                CreateSpecialCube(cubeScript);
-            }
-            else
-            {
-                // Обычный кубик
-                Debug.Log($"Creating normal cube with value: {nextValue}");
-                cubeScript.SetValue(nextValue);
-            }
+            spawnCounter = 0;
+            // Пропускаем None (0) и используем только рабочие спецкубики (1-7)
+            int workingSpecialIndex = specialCubeIndex % 7 + 1; // 1-7 вместо 0-6
+            cube.SetSpecialCube((Cube.SpecialCubeType)workingSpecialIndex);
+            specialCubeIndex = (specialCubeIndex + 1) % 7; // 7 рабочих типов: Plus, Minus, Death, Grow, Shrink, Freeze, Vortex
         }
-        
-        // Настраиваем падающий кубик
-        SetupFallingCube(fallingCube);
-        
-        // Генерируем следующее значение
+        else
+        {
+            cube.SetValue(nextValue);
+        }
+
         nextValue = GetRandomValue();
-        
-        // Сразу создаем новое превью
-        CreatePreviewCube();
+        CreatePreview();
     }
-    
-    void CreateSpecialCube(Cube cubeScript)
+
+    #endregion
+
+    #region Values
+
+    private int GetRandomValue()
     {
-        // Создаем спецкубик по порядку: Plus, Minus, Death, Grow, Shrink, Freeze
-        Cube.SpecialCubeType type;
-        
-        switch (specialCubeIndex)
+        List<int> values = new List<int>();
+        int v = 2;
+
+        while (v <= maxCubeValue)
         {
-            case 0:
-                type = Cube.SpecialCubeType.Plus;
-                break;
-            case 1:
-                type = Cube.SpecialCubeType.Minus;
-                break;
-            case 2:
-                type = Cube.SpecialCubeType.Death;
-                break;
-            case 3:
-                type = Cube.SpecialCubeType.Grow;
-                break;
-            case 4:
-                type = Cube.SpecialCubeType.Shrink;
-                break;
-            case 5:
-                type = Cube.SpecialCubeType.Freeze;
-                break;
-            case 6:
-                type = Cube.SpecialCubeType.Vortex;
-                break;
-            default:
-                type = Cube.SpecialCubeType.Plus;
-                specialCubeIndex = 0;
-                break;
+            values.Add(v);
+            v *= 2;
         }
-        
-        Debug.Log($"About to call SetSpecialCube with type: {type} (index: {specialCubeIndex})");
-        cubeScript.SetSpecialCube(type);
-        
-        // Дополнительная настройка внешнего вида для спецкубиков
-        SetupSpecialCubeAppearance(cubeScript);
-        
-        // Переходим к следующему спецкубику
-        specialCubeIndex = (specialCubeIndex + 1) % 7;
-        
-        Debug.Log($"Spawned special cube: {type}, next index: {specialCubeIndex}");
+
+        return values[Random.Range(0, values.Count)];
     }
-    
-    void SetupSpecialCubeAppearance(Cube cubeScript)
-    {
-        // Спецкубики выглядят как обычные - только цвет отличается
-        // Никаких поворотов, масштабов или изменений шрифта
-    }
-    
-    void SetupFallingCube(GameObject cube)
-    {
-        if (cube == null) return;
-        
-        // Включаем физику
-        Rigidbody2D rb = cube.GetComponent<Rigidbody2D>();
-        if (rb != null)
-        {
-            rb.simulated = true;
-            rb.velocity = Vector2.zero;
-            rb.angularVelocity = 0f;
-            
-            // Добавляем небольшую силу для падения
-            rb.AddForce(Vector2.down * fallForce, ForceMode2D.Impulse);
-        }
-        
-        // Делаем кубик непрозрачным, но сохраняем цвет
-        SpriteRenderer renderer = cube.GetComponent<SpriteRenderer>();
-        if (renderer != null)
-        {
-            Color color = renderer.color;
-            color.a = 1f; // Полностью непрозрачный
-            renderer.color = color;
-        }
-        
-        // Включаем слияния
-        Cube cubeScript = cube.GetComponent<Cube>();
-        if (cubeScript != null)
-        {
-            // cubeScript.enabled = true; // Если был отключен
-            // Цвет уже установлен через SetValue выше
-        }
-    }
-    
-    // Публичный метод для вызова из FallingCubeTracker
-    public void OnCubeLanded()
-    {
-        // Больше не нужно сбрасывать hasFallingCube - он не используется
-        // Таймер превью сам разблокирует управление
-        
-        Debug.Log("CubeSpawner: Cube landed");
-    }
-    
-    int GetRandomValue()
-    {
-        // Проверяем количество кубиков на сцене
-        Cube[] allCubes = FindObjectsOfType<Cube>();
-        int normalCubeCount = 0;
-        
-        // Собираем значения обычных кубиков (не спец)
-        HashSet<int> existingValues = new HashSet<int>();
-        foreach (Cube cube in allCubes)
-        {
-            if (!cube.IsSpecialCube())
-            {
-                normalCubeCount++;
-                existingValues.Add(cube.GetValue());
-            }
-        }
-        
-        // Если кубиков больше 9, генерируем только из существующих значений
-        if (normalCubeCount > 9 && existingValues.Count > 0)
-        {
-            List<int> possibleValues = new List<int>(existingValues);
-            return possibleValues[Random.Range(0, possibleValues.Count)];
-        }
-        
-        // Иначе генерируем как обычно - все значения от 2 до максимума
-        List<int> allPossibleValues = new List<int>();
-        
-        // Добавляем все значения от 2 до максимума, удваивая каждый раз
-        int currentValue = 2;
-        while (currentValue <= maxCubeValue)
-        {
-            allPossibleValues.Add(currentValue);
-            currentValue *= 2;
-        }
-        
-        if (allPossibleValues.Count == 0)
-            return 2;
-            
-        // Возвращаем случайное значение - все равновероятны
-        return allPossibleValues[Random.Range(0, allPossibleValues.Count)];
-    }
-    
-    // Метод для обновления максимального значения
+
     public void UpdateMaxCubeValue(int newValue)
     {
         if (newValue > maxCubeValue)
         {
             maxCubeValue = newValue;
             MaxCubeValue = newValue;
-            Debug.Log($"CubeSpawner: New max cube value: {maxCubeValue}");
         }
     }
-    
-    void HandleKeyboardInput()
+
+    #endregion
+
+    public void OnCubeLanded()
     {
-        // Проверяем нажатия клавиш движения
-        bool isMoving = (Input.GetKey(KeyCode.A) || Input.GetKey(KeyCode.LeftArrow) ||
-                       Input.GetKey(KeyCode.D) || Input.GetKey(KeyCode.RightArrow) ||
-                       Input.GetKey(KeyCode.W));
-        
-        if (isMoving)
-        {
-            isKeyboardControl = true;
-        }
-        
-        // Движение превью кубика клавиатурой
-        if (previewCube != null)
-        {
-            float moveSpeed = 5f; // Скорость движения
-            Vector3 currentPos = previewCube.transform.position;
-            
-            // WASD и стрелки для движения
-            if (Input.GetKey(KeyCode.A) || Input.GetKey(KeyCode.LeftArrow))
-            {
-                currentPos.x -= moveSpeed * Time.deltaTime;
-            }
-            if (Input.GetKey(KeyCode.D) || Input.GetKey(KeyCode.RightArrow))
-            {
-                currentPos.x += moveSpeed * Time.deltaTime;
-            }
-            
-            // Ограничиваем движение в пределах игровой области
-            currentPos.x = Mathf.Clamp(currentPos.x, minXPosition, maxXPosition);
-            
-            previewCube.transform.position = currentPos;
-        }
-        
-        // Сброс кубика по пробелу, стрелке вниз или клавише S
-        if (Input.GetKeyDown(KeyCode.Space) || Input.GetKeyDown(KeyCode.DownArrow) || Input.GetKeyDown(KeyCode.S))
-        {
-            if (previewCube != null)
-            {
-                SpawnFallingCube();
-                isKeyboardControl = false; // Сбрасываем флаг после сброса
-            }
-        }
+        // Вызывается из FallingCubeTracker
+        // Сейчас не обязателен, но оставлен для совместимости
     }
+
     
-    void HandleVortexInput()
-    {
-        // Активация вихря по клавише V
-        if (Input.GetKeyDown(vortexKey))
-        {
-            CreateVortexAtMousePosition();
-        }
-        
-        // Активация вихря по правому клику мыши
-        if (Input.GetMouseButtonDown(1))
-        {
-            CreateVortexAtMousePosition();
-        }
-    }
-    
-    void CreateVortexAtMousePosition()
-    {
-        if (vortexPrefab == null)
-        {
-            Debug.LogWarning("Vortex prefab not assigned!");
-            return;
-        }
-        
-        // Получаем позицию мыши в мире
-        Vector3 mousePosition = mainCamera.ScreenToWorldPoint(Input.mousePosition);
-        mousePosition.z = 0f;
-        
-        // Проверяем что клик в пределах игровой области
-        if (mousePosition.x >= minXPosition && mousePosition.x <= maxXPosition)
-        {
-            // Создаем вихрь
-            GameObject vortexObject = Instantiate(vortexPrefab, mousePosition, Quaternion.identity);
-            currentVortex = vortexObject.GetComponent<Vortex>();
-            
-            if (currentVortex != null)
-            {
-                currentVortex.ActivateVortex();
-                Debug.Log($"Vortex created at position: {mousePosition}");
-            }
-            else
-            {
-                Debug.LogError("Vortex component not found on prefab!");
-                Destroy(vortexObject);
-            }
-        }
-        else
-        {
-            Debug.Log("Click outside game area - vortex not created");
-        }
-    }
-    
-    // Для визуализации границ в редакторе
-    void OnDrawGizmos()
-    {
-        Gizmos.color = Color.red;
-        Gizmos.DrawLine(new Vector2(minXPosition, spawnYPosition - 0.5f), 
-                       new Vector2(maxXPosition, spawnYPosition - 0.5f));
-        
-        Gizmos.color = Color.green;
-        Gizmos.DrawWireSphere(new Vector2(minXPosition, spawnYPosition), 0.1f);
-        Gizmos.DrawWireSphere(new Vector2(maxXPosition, spawnYPosition), 0.1f);
-    }
 }

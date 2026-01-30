@@ -30,7 +30,7 @@ public class Cube : MonoBehaviour
     
     private Rigidbody2D rb;
     private Collider2D cubeCollider;
-    private TextMeshPro textMesh;
+    public TextMeshPro textMesh; // Сделал публичным для доступа из CubeSpawner
     private SpriteRenderer spriteRenderer;
     private bool canMerge = true;
     private float mergeCheckTimer = 0f;
@@ -58,14 +58,150 @@ public class Cube : MonoBehaviour
     {
         this.canMerge = canMerge;
     }
+    
+    public void ActivateSpecialSprite(string spriteType)
+    {
+        HideAllSpecCubesSprites(); // Сначала скрываем все спрайты
+        
+        switch (spriteType.ToLower())
+        {
+            case "death":
+                if (deathCubeSprite != null) 
+                {
+                    deathCubeSprite.SetActive(true);
+                    SetSpriteLayer(deathCubeSprite, 10); // Повышаем слой
+                }
+                break;
+            case "grow":
+                if (growCubeSprite != null) 
+                {
+                    growCubeSprite.SetActive(true);
+                    SetSpriteLayer(growCubeSprite, 10); // Повышаем слой
+                }
+                break;
+            case "shrink":
+                if (shrinkCubeSprite != null) 
+                {
+                    shrinkCubeSprite.SetActive(true);
+                    SetSpriteLayer(shrinkCubeSprite, 10); // Повышаем слой
+                }
+                break;
+            case "freeze":
+                if (freezeCubeSprite != null) 
+                {
+                    freezeCubeSprite.SetActive(true);
+                    SetSpriteLayer(freezeCubeSprite, 10); // Повышаем слой
+                }
+                break;
+            case "vortex":
+                if (vortexCubeSprite != null) 
+                {
+                    vortexCubeSprite.SetActive(true);
+                    SetSpriteLayer(vortexCubeSprite, 10); // Повышаем слой
+                }
+                break;
+        }
+    }
+    
+    public void UpdateVisualsImmediate()
+    {
+        // Обновляем текст
+        if (isSpecialCube)
+        {
+            // Обновление для специальных кубов
+            string specialText = GetSpecialCubeText();
+            if (textMesh != null) textMesh.text = specialText;
+            
+            // Обновляем спрайты для специальных кубов
+            UpdateSpecialCubeSprites();
+        }
+        else
+        {
+            // Обновление для обычных кубов
+            if (textMesh != null) textMesh.text = FormatValue(value);
+            
+            // Скрываем все спрайты для обычных кубов
+            HideAllSpecCubesSprites();
+        }
+        
+        // Обновление цвета
+        UpdateVisual();
+        
+        // Принудительное обновление UI
+        if (textMesh != null)
+        {
+            textMesh.enabled = false;
+            textMesh.enabled = true;
+        }
+    }
+    
+    private void UpdateSpecialCubeSprites()
+    {
+        HideAllSpecCubesSprites(); // Сначала скрываем все
+        
+        // Активируем нужный спрайт в зависимости от типа специального куба
+        switch (specialType)
+        {
+            case SpecialCubeType.Death:
+                if (deathCubeSprite != null) 
+                {
+                    deathCubeSprite.SetActive(true);
+                    SetSpriteLayer(deathCubeSprite, 10); // Повышаем слой
+                }
+                break;
+            case SpecialCubeType.Grow:
+                if (growCubeSprite != null) 
+                {
+                    growCubeSprite.SetActive(true);
+                    SetSpriteLayer(growCubeSprite, 10); // Повышаем слой
+                }
+                break;
+            case SpecialCubeType.Shrink:
+                if (shrinkCubeSprite != null) 
+                {
+                    shrinkCubeSprite.SetActive(true);
+                    SetSpriteLayer(shrinkCubeSprite, 10); // Повышаем слой
+                }
+                break;
+            case SpecialCubeType.Freeze:
+                if (freezeCubeSprite != null) 
+                {
+                    freezeCubeSprite.SetActive(true);
+                    SetSpriteLayer(freezeCubeSprite, 10); // Повышаем слой
+                }
+                break;
+            case SpecialCubeType.Vortex:
+                if (vortexCubeSprite != null) 
+                {
+                    vortexCubeSprite.SetActive(true);
+                    SetSpriteLayer(vortexCubeSprite, 10); // Повышаем слой
+                }
+                break;
+            case SpecialCubeType.Plus:
+            case SpecialCubeType.Minus:
+            default:
+                // Для Plus и Minus не показываем спрайты
+                break;
+        }
+    }
+    
+    private void SetSpriteLayer(GameObject spriteObject, int layerOrder)
+    {
+        // Устанавливаем sorting order для всех SpriteRenderer в объекте
+        SpriteRenderer[] renderers = spriteObject.GetComponentsInChildren<SpriteRenderer>();
+        foreach (SpriteRenderer renderer in renderers)
+        {
+            renderer.sortingOrder = layerOrder;
+        }
+    }
 
     private void HideAllSpecCubesSprites()
     {
-        deathCubeSprite.SetActive(false);
-        growCubeSprite.SetActive(false);
-        shrinkCubeSprite.SetActive(false);
-        freezeCubeSprite.SetActive(false);
-        vortexCubeSprite.SetActive(false); 
+        if (deathCubeSprite != null) deathCubeSprite.SetActive(false);
+        if (growCubeSprite != null) growCubeSprite.SetActive(false);
+        if (shrinkCubeSprite != null) shrinkCubeSprite.SetActive(false);
+        if (freezeCubeSprite != null) freezeCubeSprite.SetActive(false);
+        if (vortexCubeSprite != null) vortexCubeSprite.SetActive(false);
     }
     
     void Start()
@@ -217,6 +353,16 @@ public class Cube : MonoBehaviour
             }
         }
         
+        // Обновляем спрайты для специальных кубов
+        if (isSpecialCube)
+        {
+            UpdateSpecialCubeSprites();
+        }
+        else
+        {
+            HideAllSpecCubesSprites();
+        }
+        
         // Устанавливаем цвет
         Color targetColor;
         
@@ -297,25 +443,25 @@ public class Cube : MonoBehaviour
             // Миллионы - фиолетовый текст
             return Color.black;
         }
-        else if (value < 1000000000000)
+        else if (value < 1000000000L)
         {
             // Миллиарды - зеленый текст
-            return  Color.white;
+            return Color.white;
         }
-        else if (value < 1000000000000000)
+        else if (value < 1000000000L * 1000)
         {
             // Триллионы - оранжевый текст
             return Color.black;
         }
-        else if (value < 1000000000000000000)
+        else if (value < 1000000000L * 1000000)
         {
             // Квадриллионы - красный текст
-            return new Color(0.9f, 0.1f, 0.1f);
+            return Color.white;
         }
         else
         {
-            // Квинтиллионы и выше - золотой текст
-            return new Color(1f, 0.8f, 0.2f);
+            // Очень большие значения - желтый текст
+            return Color.yellow;
         }
     }
     
@@ -323,9 +469,8 @@ public class Cube : MonoBehaviour
     {
         if (!isSpecialCube)
         {
-            HideAllSpecCubesSprites();
             Debug.LogWarning($"GetSpecialCubeText called on non-special cube! isSpecialCube={isSpecialCube}, specialType={specialType}");
-            return "?";
+            return "";
         }
         
         switch (specialType)
@@ -335,23 +480,18 @@ public class Cube : MonoBehaviour
             case SpecialCubeType.Minus:
                 return "X / 2";
             case SpecialCubeType.Death:
-                deathCubeSprite.SetActive(true);
                 return "";
             case SpecialCubeType.Grow:
-                growCubeSprite.SetActive(true);
                 return "";
             case SpecialCubeType.Shrink:
-                shrinkCubeSprite.SetActive(true);
                 return "";
             case SpecialCubeType.Freeze:
-                freezeCubeSprite.SetActive(true);
                 return "";
             case SpecialCubeType.Vortex:
-                vortexCubeSprite.SetActive(true);
                 return "";
             default:
                 Debug.LogWarning($"GetSpecialCubeText: Unknown specialType={specialType}");
-                return "?";
+                return "";
         }
     }
     
@@ -364,11 +504,11 @@ public class Cube : MonoBehaviour
             case SpecialCubeType.Minus:
                 return new Color(0.7f, 0.3f, 0.3f); // Менее яркий красный
             case SpecialCubeType.Death:
-                return Color.white; // Белый кубик смерти
+                return new Color(0.6f, 0.15f, 0.0f); // Более темный красно-оранжевый
             case SpecialCubeType.Grow:
-                return new Color(0.3f, 0.3f, 0.8f); // Синий для увеличения
+                return new Color(0.2f, 0.8f, 0.2f); // Зеленый для увеличения
             case SpecialCubeType.Shrink:
-                return new Color(0.8f, 0.6f, 0.2f); // Оранжевый для уменьшения
+                return new Color(0.6f, 0.3f, 0.8f); // Фиолетовый для уменьшения
             case SpecialCubeType.Freeze:
                 return new Color(0.7f, 0.9f, 1.0f); // Ледяной голубой
             case SpecialCubeType.Vortex:
@@ -384,16 +524,9 @@ public class Cube : MonoBehaviour
         specialType = type;
         Debug.Log($"SetSpecialCube: type={type}, isSpecialCube={isSpecialCube}");
         
-        // Настраиваем внешний вид для спецкубиков
-        SetupSpecialCubeAppearance();
-        
+        // Обновляем визуалы немедленно
+        UpdateSpecialCubeSprites();
         UpdateVisual();
-    }
-    
-    void SetupSpecialCubeAppearance()
-    {
-        // Спецкубики выглядят как обычные - только цвет отличается
-        // Никаких поворотов, масштабов или изменений шрифта
     }
     
     private Color GetContrastColor(Color backgroundColor)
@@ -413,14 +546,14 @@ public class Cube : MonoBehaviour
             return (val / 1000).ToString() + " К";
         else if (val < 1000000000)
             return (val / 1000000).ToString() + " М";
-        else if (val < 1000000000000)
+        else if (val < 1000000000L * 1000)
             return (val / 1000000000).ToString() + " Б";
-        else if (val < 1000000000000000)
-            return (val / 1000000000000).ToString() + " Т";
-        else if (val < 1000000000000000000)
-            return (val / 1000000000000000).ToString() + " Кк";
+        else if (val < 1000000000L * 1000000)
+            return (val / (1000000000L * 1000)).ToString() + " Т";
+        else if (val < 1000000000L * 1000000000)
+            return (val / (1000000000L * 1000000)).ToString() + " Кк";
         else
-            return (val / 1000000000000000000).ToString() + " Ккк";
+            return (val / (1000000000L * 1000000000)).ToString() + " Ккк";
     }
     
     private int GetColorIndex()
@@ -874,6 +1007,9 @@ public class Cube : MonoBehaviour
         specialType = SpecialCubeType.None;
         Debug.Log($"SetValue: value={newValue}, isSpecialCube={isSpecialCube}");
         
+        // Скрываем все спрайты специальных кубов при установке обычного значения
+        HideAllSpecCubesSprites();
+        
         // Восстанавливаем оригинальный размер шрифта и масштаб для обычных кубиков
         if (textMesh != null && originalFontSize > 0)
         {
@@ -891,7 +1027,6 @@ public class Cube : MonoBehaviour
         
         UpdateVisual();
     }
-    
     
     void CheckForMerges()
     {
