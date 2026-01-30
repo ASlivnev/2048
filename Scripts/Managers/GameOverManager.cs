@@ -137,6 +137,24 @@ public class GameOverManager : MonoBehaviour
         Debug.LogWarning("GAME OVER - Кубики касались полосы более 3 секунд!");
     }
     
+    // RestartGame убран - GameManager просто перезагружает сцену
+    // Все объекты создадутся заново как при первом запуске
+    
+    // Публичный метод для принудительного сброса статических переменных
+    public static void ForceReset()
+    {
+        if (Instance != null)
+        {
+            Instance.isGameOver = false;
+            Instance.currentContactTime = 0f;
+            Instance.touchingCubesCount = 0;
+            Instance.isTouchingBar = false;
+            Instance.isVortexActive = false;
+            
+            Debug.Log("GameOverManager: Force reset - all state cleared");
+        }
+    }
+    
     // Методы для отслеживания контактов
     public void OnCubeEnterBar()
     {
@@ -176,31 +194,6 @@ public class GameOverManager : MonoBehaviour
         isVortexActive = false;
         
         Debug.Log("GameOverManager: Vortex deactivated - showing bar");
-    }
-    
-    // Публичный метод для перезапуска игры
-    public void RestartGame()
-    {
-        isGameOver = false;
-        currentContactTime = 0f;
-        touchingCubesCount = 0;
-        isTouchingBar = false;
-        isVortexActive = false;
-        
-        // Возвращаем белый цвет и показываем полосу
-        if (gameOverBar != null)
-        {
-            gameOverBar.color = normalColor;
-            gameOverBar.gameObject.SetActive(true);
-        }
-        
-        // Снимаем паузу
-        Time.timeScale = 1f;
-        
-        // Сбрасываем счет
-        ScoreManager.ResetScore();
-        
-        Debug.Log("GameOverManager: Game restarted");
     }
     
     void OnDrawGizmosSelected()

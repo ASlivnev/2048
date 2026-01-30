@@ -21,7 +21,7 @@ public class GameManager : MonoBehaviour
         if (Instance == null)
         {
             Instance = this;
-            DontDestroyOnLoad(gameObject);
+            // Убираем DontDestroyOnLoad чтобы GameManager пересоздавался при рестарте
         }
         else
         {
@@ -32,10 +32,18 @@ public class GameManager : MonoBehaviour
     
     void Start()
     {
+        Debug.Log("GameManager: Start() called");
+        
+        // Гарантируем правильный TimeScale при старте
+        Time.timeScale = 1f;
+        
+        Debug.Log($"GameManager: Initial state - IsPaused: {isPaused}, IsGameOver: {isGameOver}, TimeScale: {Time.timeScale}");
+        
         // Скрываем меню паузы при старте
         if (pauseMenu != null)
         {
             pauseMenu.SetActive(false);
+            Debug.Log("GameManager: Pause menu hidden on start");
         }
         else
         {
@@ -46,11 +54,14 @@ public class GameManager : MonoBehaviour
         if (gameOverMenu != null)
         {
             gameOverMenu.SetActive(false);
+            Debug.Log("GameManager: Game Over menu hidden on start");
         }
         else
         {
             Debug.LogWarning("GameManager: Game Over menu not assigned!");
         }
+        
+        Debug.Log("GameManager: Start() completed");
     }
     
     void Update()
@@ -144,10 +155,7 @@ public class GameManager : MonoBehaviour
     // Публичная функция: Рестарт игры
     public void RestartGame()
     {
-        // Просто перезагружаем текущую сцену
         UnityEngine.SceneManagement.SceneManager.LoadScene(UnityEngine.SceneManagement.SceneManager.GetActiveScene().buildIndex);
-        
-        Debug.Log("GameManager: Scene restarted");
     }
     
     void OnApplicationFocus(bool hasFocus)

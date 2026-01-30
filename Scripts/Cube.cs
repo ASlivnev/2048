@@ -20,6 +20,14 @@ public class Cube : MonoBehaviour
     [SerializeField] ParticleSystem mergeEffect;
     [SerializeField] GameObject deathEffectPrefab;
     
+    [Header("Spec cubes sprites")]
+    [SerializeField] GameObject deathCubeSprite;
+    [SerializeField] GameObject growCubeSprite;
+    [SerializeField] GameObject shrinkCubeSprite;
+    [SerializeField] GameObject freezeCubeSprite;
+    [SerializeField] GameObject vortexCubeSprite;
+    
+    
     private Rigidbody2D rb;
     private Collider2D cubeCollider;
     private TextMeshPro textMesh;
@@ -42,11 +50,27 @@ public class Cube : MonoBehaviour
         Vortex  // ~ создает вихрь
     }
     
-    public int Value => value;
-    public bool IsSpecialCube => isSpecialCube;
+    public int GetValue() => value;
+    
+    public bool IsSpecialCube() => isSpecialCube;
+    
+    public void SetCanMerge(bool canMerge)
+    {
+        this.canMerge = canMerge;
+    }
+
+    private void HideAllSpecCubesSprites()
+    {
+        deathCubeSprite.SetActive(false);
+        growCubeSprite.SetActive(false);
+        shrinkCubeSprite.SetActive(false);
+        freezeCubeSprite.SetActive(false);
+        vortexCubeSprite.SetActive(false); 
+    }
     
     void Start()
     {
+        HideAllSpecCubesSprites();
         Debug.Log($"Cube Start: value={value}, isSpecialCube={isSpecialCube}, specialType={specialType}");
         
         // Инициализируем цвета если массив пустой
@@ -92,14 +116,24 @@ public class Cube : MonoBehaviour
         textMesh = GetComponentInChildren<TextMeshPro>();
         spriteRenderer = GetComponent<SpriteRenderer>();
         
+        Debug.Log($"Cube.Awake: {gameObject.name} - SpriteRenderer: {spriteRenderer != null}, TextMesh: {textMesh != null}");
+        
+        // Проверяем обязательные компоненты
+        if (spriteRenderer == null)
+        {
+            Debug.LogError("Cube: SpriteRenderer component is missing! Please add SpriteRenderer to the cube prefab.");
+        }
+        
+        if (textMesh == null)
+        {
+            Debug.LogError("Cube: TextMeshPro component is missing! Please add TextMeshPro to the cube prefab.");
+        }
+        
         if (textMesh != null)
         {
             originalFontSize = textMesh.fontSize;
             textOriginalRotation = textMesh.transform.rotation;
         }
-            
-        if (spriteRenderer == null)
-            spriteRenderer = GetComponent<SpriteRenderer>();
         
         // Устанавливаем тег для кубика
         if (gameObject.tag != "Cube")
@@ -289,6 +323,7 @@ public class Cube : MonoBehaviour
     {
         if (!isSpecialCube)
         {
+            HideAllSpecCubesSprites();
             Debug.LogWarning($"GetSpecialCubeText called on non-special cube! isSpecialCube={isSpecialCube}, specialType={specialType}");
             return "?";
         }
@@ -300,15 +335,20 @@ public class Cube : MonoBehaviour
             case SpecialCubeType.Minus:
                 return "X / 2";
             case SpecialCubeType.Death:
-                return "0";
+                deathCubeSprite.SetActive(true);
+                return "";
             case SpecialCubeType.Grow:
-                return "< >";
+                growCubeSprite.SetActive(true);
+                return "";
             case SpecialCubeType.Shrink:
-                return "> <";
+                shrinkCubeSprite.SetActive(true);
+                return "";
             case SpecialCubeType.Freeze:
-                return "*";
+                freezeCubeSprite.SetActive(true);
+                return "";
             case SpecialCubeType.Vortex:
-                return "~";
+                vortexCubeSprite.SetActive(true);
+                return "";
             default:
                 Debug.LogWarning($"GetSpecialCubeText: Unknown specialType={specialType}");
                 return "?";
@@ -434,7 +474,7 @@ public class Cube : MonoBehaviour
             }
             
             // Проверка на разморозку
-            if (otherCube.Value == this.value)
+            if (otherCube.GetValue() == this.value)
             {
                 // Если один из кубиков заморожен, размораживаем его
                 if (!this.canMerge && otherCube.canMerge)
@@ -450,7 +490,7 @@ public class Cube : MonoBehaviour
             }
             
             // Обычное слияние
-            if (otherCube.Value == this.value && 
+            if (otherCube.GetValue() == this.value && 
                 otherCube.canMerge && 
                 this.canMerge)
             {
@@ -473,7 +513,10 @@ public class Cube : MonoBehaviour
                 int originalValue = otherCube.value;
                 otherCube.value *= 2;
                 otherCube.UpdateVisual();
-                CubeSpawner.UpdateMaxCubeValue(otherCube.value);
+                if (CubeSpawner.Instance != null)
+            {
+                CubeSpawner.Instance.UpdateMaxCubeValue(otherCube.value);
+            }
                 
                 // Добавляем очки за спецкубик
                 ScoreManager.AddSpecialCubeScore("Plus", otherCube.value);
@@ -809,7 +852,10 @@ public class Cube : MonoBehaviour
         PlayMergeEffect();
         
         // Обновляем максимальное значение в спаунере
-        CubeSpawner.UpdateMaxCubeValue(value);
+        if (CubeSpawner.Instance != null)
+        {
+            CubeSpawner.Instance.UpdateMaxCubeValue(value);
+        }
         
         // Уничтожаем другой кубик
         Destroy(otherCube.gameObject);
@@ -862,7 +908,7 @@ public class Cube : MonoBehaviour
             
             Cube otherCube = otherCollider.GetComponent<Cube>();
             if (otherCube != null && 
-                otherCube.Value == this.value && 
+                otherCube.GetValue() == this.value && 
                 otherCube.canMerge && 
                 otherCube != this)
             {

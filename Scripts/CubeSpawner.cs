@@ -17,11 +17,13 @@ public class CubeSpawner : MonoBehaviour
     
     public static CubeSpawner Instance { get; private set; }
     
+    public int MaxCubeValue { get; private set; } = 2;
+    
     private Camera mainCamera;
     private GameObject previewCube;
     private bool isTouching = false;
     private int nextValue;
-    private static int maxCubeValue = 8; // Начальный максимум
+    private int maxCubeValue = 8; // Начальный максимум
     
     [Header("Special Cubes")]
     [SerializeField] int specialCubeInterval = 5; // Через сколько ходов спецкубик
@@ -55,8 +57,8 @@ public class CubeSpawner : MonoBehaviour
         nextValue = GetRandomValue();
         CreatePreviewCube();
         
-        // Сбрасываем счет при начале новой игры
-        ScoreManager.ResetScore();
+        // НЕ сбрасываем счет здесь - ScoreManager сам управляет счетом в Start()
+        // ScoreManager.ResetScore();
     }
     
     void Update()
@@ -232,7 +234,7 @@ public class CubeSpawner : MonoBehaviour
         }
         else
         {
-            // Обычный кубик
+            // Обычный кубик - устанавливаем значение сразу как спецкубики
             Cube cubeScript = previewCube.GetComponent<Cube>();
             if (cubeScript != null)
             {
@@ -244,6 +246,7 @@ public class CubeSpawner : MonoBehaviour
         SetupPreviewCube();
     }
     
+        
     void SetupPreviewCube()
     {
         if (previewCube == null) return;
@@ -257,21 +260,13 @@ public class CubeSpawner : MonoBehaviour
             rb.angularVelocity = 0f;
         }
         
-        // Делаем превью полупрозрачным
-        SpriteRenderer renderer = previewCube.GetComponent<SpriteRenderer>();
-        if (renderer != null)
-        {
-            Color color = renderer.color;
-            color.a = 0.7f; // Полупрозрачный
-            renderer.color = color;
-        }
-        
+                
         // Отключаем слияния для превью
         Cube cube = previewCube.GetComponent<Cube>();
         if (cube != null)
         {
-            cube.enabled = false; // Временно отключаем скрипт
-            cube.enabled = true;  // Сразу включаем обратно
+            // Просто блокируем слияния без отключения скрипта
+            cube.SetCanMerge(false);
         }
         
         // Устанавливаем слой для превью если нужно
@@ -297,6 +292,7 @@ public class CubeSpawner : MonoBehaviour
         // Создаем падающий кубик
         GameObject fallingCube = Instantiate(cubePrefab, spawnPosition, Quaternion.identity);
         
+                
         // Добавляем трекер для отслеживания приземления
         fallingCube.AddComponent<FallingCubeTracker>();
         
@@ -436,10 +432,10 @@ public class CubeSpawner : MonoBehaviour
         HashSet<int> existingValues = new HashSet<int>();
         foreach (Cube cube in allCubes)
         {
-            if (!cube.IsSpecialCube)
+            if (!cube.IsSpecialCube())
             {
                 normalCubeCount++;
-                existingValues.Add(cube.Value);
+                existingValues.Add(cube.GetValue());
             }
         }
         
@@ -468,13 +464,14 @@ public class CubeSpawner : MonoBehaviour
         return allPossibleValues[Random.Range(0, allPossibleValues.Count)];
     }
     
-    // Статический метод для обновления максимального значения
-    public static void UpdateMaxCubeValue(int newValue)
+    // Метод для обновления максимального значения
+    public void UpdateMaxCubeValue(int newValue)
     {
         if (newValue > maxCubeValue)
         {
             maxCubeValue = newValue;
-            Debug.Log($"New max cube value: {maxCubeValue}");
+            MaxCubeValue = newValue;
+            Debug.Log($"CubeSpawner: New max cube value: {maxCubeValue}");
         }
     }
     

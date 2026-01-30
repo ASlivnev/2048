@@ -31,14 +31,17 @@ public class ScoreUI : MonoBehaviour
     
     void UpdateScoreDisplay()
     {
-        if (scoreText != null)
+        if (ScoreManager.Instance != null)
         {
-            scoreText.text = $"Score: {FormatScore(ScoreManager.CurrentScore)}";
-        }
-        
-        if (bestScoreText != null)
-        {
-            bestScoreText.text = $"Best: {FormatScore(ScoreManager.BestScore)}";
+            if (scoreText != null)
+            {
+                scoreText.text = $"Score: {FormatScore(ScoreManager.Instance.CurrentScore)}";
+            }
+            
+            if (bestScoreText != null)
+            {
+                bestScoreText.text = $"Best: {FormatScore(ScoreManager.Instance.BestScore)}";
+            }
         }
     }
     

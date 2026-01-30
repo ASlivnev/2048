@@ -7,14 +7,14 @@ public class ScoreManager : MonoBehaviour
     [SerializeField] private TextMeshProUGUI scoreText;
     [SerializeField] private TextMeshProUGUI bestScoreText;
     
-    private static int currentScore = 0;
-    private static int bestScore = 0;
+    private int currentScore = 0;
+    private int bestScore = 0;
     private const string BEST_SCORE_KEY = "BestScore2048Cubes";
     
     public static ScoreManager Instance { get; private set; }
     
-    public static int CurrentScore => currentScore;
-    public static int BestScore => bestScore;
+    public int CurrentScore => currentScore;
+    public int BestScore => bestScore;
     
     void Awake()
     {
@@ -22,7 +22,7 @@ public class ScoreManager : MonoBehaviour
         if (Instance == null)
         {
             Instance = this;
-            DontDestroyOnLoad(gameObject);
+            // Убираем DontDestroyOnLoad чтобы ScoreManager пересоздавался при рестарте
         }
         else
         {
@@ -34,7 +34,10 @@ public class ScoreManager : MonoBehaviour
     void Start()
     {
         LoadBestScore();
+        currentScore = 0; // Всегда начинаем с нуля как при первом запуске
         UpdateScoreDisplay();
+        
+        Debug.Log($"ScoreManager: Started - Current: {currentScore}, Best: {bestScore}");
     }
     
     void LoadBestScore()
@@ -50,34 +53,65 @@ public class ScoreManager : MonoBehaviour
         Debug.Log($"ScoreManager: Saved best score: {bestScore}");
     }
     
-    public static void AddScore(int points)
+    public void AddScore(int points)
     {
         currentScore += points;
         
-        if (Instance != null)
+        UpdateScoreDisplay();
+        
+        // Проверяем и обновляем лучший результат
+        if (currentScore > bestScore)
         {
-            Instance.UpdateScoreDisplay();
-            
-            // Проверяем и обновляем лучший результат
-            if (currentScore > bestScore)
-            {
-                bestScore = currentScore;
-                Instance.SaveBestScore();
-                Debug.Log($"ScoreManager: New best score! {bestScore}");
-            }
+            bestScore = currentScore;
+            SaveBestScore();
+            Debug.Log($"ScoreManager: New best score! {bestScore}");
         }
     }
     
-    public static void ResetScore()
+    // Методы для добавления очков
+    public static void AddMergeScore(int cubeValue)
     {
-        currentScore = 0;
-        
         if (Instance != null)
         {
-            Instance.UpdateScoreDisplay();
+            Instance.AddScore(cubeValue);
+            Debug.Log($"ScoreManager: Added {cubeValue} points for merging {cubeValue} cube");
         }
-        
-        Debug.Log("ScoreManager: Score reset");
+    }
+    
+    public static void AddSpecialCubeScore(string specialType, int cubeValue)
+    {
+        if (Instance != null)
+        {
+            int points = cubeValue / 2; // Половина значения кубика
+            
+            switch (specialType)
+            {
+                case "Plus":
+                    points = cubeValue;
+                    break;
+                case "Minus":
+                    points = cubeValue / 4;
+                    break;
+                case "Death":
+                    points = cubeValue * 2;
+                    break;
+                case "Grow":
+                    points = cubeValue / 2;
+                    break;
+                case "Shrink":
+                    points = cubeValue / 3;
+                    break;
+                case "Freeze":
+                    points = cubeValue / 2;
+                    break;
+                case "Vortex":
+                    points = cubeValue * 3;
+                    break;
+            }
+            
+            Instance.AddScore(points);
+            Debug.Log($"ScoreManager: Added {points} points for {specialType} special cube");
+        }
     }
     
     void UpdateScoreDisplay()
@@ -105,47 +139,5 @@ public class ScoreManager : MonoBehaviour
             return $"{score / 1000000000} B";
         else
             return $"{score / 1000000000000} T";
-    }
-    
-    // Метод для добавления очков при слиянии кубиков
-    public static void AddMergeScore(int cubeValue)
-    {
-        int points = cubeValue;
-        AddScore(points);
-        Debug.Log($"ScoreManager: Added {points} points for merging {cubeValue} cube");
-    }
-    
-    // Метод для добавления очков за спецкубики
-    public static void AddSpecialCubeScore(string specialType, int cubeValue)
-    {
-        int points = cubeValue / 2; // Половина значения кубика
-        
-        switch (specialType)
-        {
-            case "Plus":
-                points = cubeValue;
-                break;
-            case "Minus":
-                points = cubeValue / 4;
-                break;
-            case "Death":
-                points = cubeValue * 2;
-                break;
-            case "Grow":
-                points = cubeValue / 2;
-                break;
-            case "Shrink":
-                points = cubeValue / 3;
-                break;
-            case "Freeze":
-                points = cubeValue / 2;
-                break;
-            case "Vortex":
-                points = cubeValue * 3;
-                break;
-        }
-        
-        AddScore(points);
-        Debug.Log($"ScoreManager: Added {points} points for {specialType} special cube");
     }
 }
