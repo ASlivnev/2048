@@ -1,6 +1,7 @@
 using UnityEngine;
 using UnityEngine.UI;
 using System.Collections;
+using System;
 
 public class GameOverManager : MonoBehaviour
 {
@@ -17,6 +18,9 @@ public class GameOverManager : MonoBehaviour
     private bool isTouchingBar = false;
     private int touchingCubesCount = 0;
     private bool isVortexActive = false; // Флаг активного вихря
+    
+    // Событие Game Over
+    public static event Action OnGameOver;
     
     public static GameOverManager Instance { get; private set; }
     
@@ -112,11 +116,10 @@ public class GameOverManager : MonoBehaviour
         
         isGameOver = true;
         
-        // Устанавливаем красный цвет
-        if (gameOverBar != null)
-        {
-            gameOverBar.color = dangerColor;
-        }
+        Debug.Log("GAME OVER!");
+        
+        // Вызываем событие Game Over
+        OnGameOver?.Invoke();
         
         // Вызываем Game Over в GameManager
         if (GameManager.Instance != null)
@@ -125,14 +128,8 @@ public class GameOverManager : MonoBehaviour
         }
         else
         {
-            // Если GameManager нет, ставим на паузу вручную
-            Time.timeScale = 0f;
-            Debug.LogError("GameOverManager: GameManager not found! Using fallback pause.");
+            Debug.LogError("GameOverManager: GameManager instance not found!");
         }
-        
-        // Выводим в консоль
-        Debug.Log("GAME OVER");
-        
         // Можно добавить дополнительные эффекты
         Debug.LogWarning("GAME OVER - Кубики касались полосы более 3 секунд!");
     }

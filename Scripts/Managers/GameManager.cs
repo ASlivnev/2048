@@ -76,23 +76,26 @@ public class GameManager : MonoBehaviour
         }
     }
     
-    // Приватная функция для постановки на паузу
-    void PauseGame()
+    // Публичная функция для постановки на паузу
+    public void PauseGame()
     {
         if (isPaused || isGameOver) return;
         
         isPaused = true;
         Time.timeScale = 0f;
         
+        // БЛОКИРУЕМ УПРАВЛЕНИЕ - отключаем спаун и управление
+        DisableGameControls();
+        
         // Показываем меню паузы
         if (pauseMenu != null)
         {
             pauseMenu.SetActive(true);
-            Debug.Log("GameManager: Game paused - menu shown");
+            Debug.Log("GameManager: Game paused - menu shown, controls disabled");
         }
         else
         {
-            Debug.LogError("GameManager: Pause menu is NULL! Cannot show pause menu.");
+            Debug.Log("GameManager: Game paused - no menu to show, controls disabled");
         }
     }
     
@@ -104,11 +107,14 @@ public class GameManager : MonoBehaviour
         isPaused = false;
         Time.timeScale = 1f;
         
+        // ВОЗОБНОВЛЯЕМ УПРАВЛЕНИЕ - включаем спаун и управление
+        EnableGameControls();
+        
         // Скрываем меню паузы
         if (pauseMenu != null)
         {
             pauseMenu.SetActive(false);
-            Debug.Log("GameManager: Game resumed - menu hidden");
+            Debug.Log("GameManager: Game resumed - menu hidden, controls enabled");
         }
         else
         {
@@ -119,8 +125,62 @@ public class GameManager : MonoBehaviour
     // Публичное свойство для проверки состояния паузы
     public bool IsPaused => isPaused;
     
-    // Публичное свойство для проверки состояния Game Over
     public bool IsGameOver => isGameOver;
+    
+    // БЛОКИРОВКА УПРАВЛЕНИЯ ПРИ ПАУЗЕ
+    private void DisableGameControls()
+    {
+        Debug.Log("GameManager: Disabling game controls");
+        
+        // Отключаем спаунер кубиков
+        if (CubeSpawner.Instance != null)
+        {
+            CubeSpawner.Instance.enabled = false;
+        }
+        
+        // Отключаем все скрипты управления на кубиках
+        DisableCubeControls();
+    }
+    
+    private void EnableGameControls()
+    {
+        Debug.Log("GameManager: Enabling game controls");
+        
+        // Включаем спаунер кубиков
+        if (CubeSpawner.Instance != null)
+        {
+            CubeSpawner.Instance.enabled = true;
+        }
+        
+        // Включаем все скрипты управления на кубиках
+        EnableCubeControls();
+    }
+    
+    private void DisableCubeControls()
+    {
+        // Находим все скрипты управления на кубиках и отключаем их
+        MonoBehaviour[] allScripts = FindObjectsOfType<MonoBehaviour>();
+        foreach (MonoBehaviour script in allScripts)
+        {
+            if (script != null && script.name.Contains("Control") || script.name.Contains("Input") || script.name.Contains("Mouse"))
+            {
+                script.enabled = false;
+            }
+        }
+    }
+    
+    private void EnableCubeControls()
+    {
+        // Находим все скрипты управления на кубиках и включаем их
+        MonoBehaviour[] allScripts = FindObjectsOfType<MonoBehaviour>();
+        foreach (MonoBehaviour script in allScripts)
+        {
+            if (script != null && script.name.Contains("Control") || script.name.Contains("Input") || script.name.Contains("Mouse"))
+            {
+                script.enabled = true;
+            }
+        }
+    }
     
     // Публичная функция для вызова Game Over
     public void TriggerGameOver()

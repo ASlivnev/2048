@@ -448,12 +448,12 @@ public class Cube : MonoBehaviour
             // Миллиарды - зеленый текст
             return Color.white;
         }
-        else if (value < 1000000000L * 1000)
+        else if (value < 1000000000L * 1000L)
         {
             // Триллионы - оранжевый текст
             return Color.black;
         }
-        else if (value < 1000000000L * 1000000)
+        else if (value < 1000000000L * 1000000L)
         {
             // Квадриллионы - красный текст
             return Color.white;
@@ -546,14 +546,14 @@ public class Cube : MonoBehaviour
             return (val / 1000).ToString() + "К";
         else if (val < 1000000000)
             return (val / 1000000).ToString() + "М";
-        else if (val < 1000000000L * 1000)
+        else if (val < 1000000000L * 1000L)
             return (val / 1000000000).ToString() + "B";
-        else if (val < 1000000000L * 1000000)
-            return (val / (1000000000L * 1000)).ToString() + "Т";
-        else if (val < 1000000000L * 1000000000)
-            return (val / (1000000000L * 1000000)).ToString() + "Кк";
+        else if (val < 1000000000L * 1000000L)
+            return (val / (1000000000L * 1000L)).ToString() + "Т";
+        else if (val < 1000000000L * 1000000000L)
+            return (val / (1000000000L * 1000000L)).ToString() + "Кк";
         else
-            return (val / (1000000000L * 1000000000)).ToString() + "Ккк";
+            return (val / (1000000000L * 1000000000L)).ToString() + "Ккк";
     }
     
     private int GetColorIndex()
