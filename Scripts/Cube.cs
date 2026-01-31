@@ -478,7 +478,7 @@ public class Cube : MonoBehaviour
             case SpecialCubeType.Plus:
                 return "X2";
             case SpecialCubeType.Minus:
-                return "X / 2";
+                return "X/2";
             case SpecialCubeType.Death:
                 return "";
             case SpecialCubeType.Grow:
@@ -543,17 +543,17 @@ public class Cube : MonoBehaviour
         if (val < 1000)
             return val.ToString();
         else if (val < 1000000)
-            return (val / 1000).ToString() + " К";
+            return (val / 1000).ToString() + "К";
         else if (val < 1000000000)
-            return (val / 1000000).ToString() + " М";
+            return (val / 1000000).ToString() + "М";
         else if (val < 1000000000L * 1000)
-            return (val / 1000000000).ToString() + " Б";
+            return (val / 1000000000).ToString() + "B";
         else if (val < 1000000000L * 1000000)
-            return (val / (1000000000L * 1000)).ToString() + " Т";
+            return (val / (1000000000L * 1000)).ToString() + "Т";
         else if (val < 1000000000L * 1000000000)
-            return (val / (1000000000L * 1000000)).ToString() + " Кк";
+            return (val / (1000000000L * 1000000)).ToString() + "Кк";
         else
-            return (val / (1000000000L * 1000000000)).ToString() + " Ккк";
+            return (val / (1000000000L * 1000000000)).ToString() + "Ккк";
     }
     
     private int GetColorIndex()

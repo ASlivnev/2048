@@ -158,6 +158,16 @@ public class GameManager : MonoBehaviour
         UnityEngine.SceneManagement.SceneManager.LoadScene(UnityEngine.SceneManagement.SceneManager.GetActiveScene().buildIndex);
     }
     
+    // Публичная функция: Очистить все PlayerPrefs
+    public void ClearAllPlayerPrefs()
+    {
+        Debug.Log("GameManager: Clearing all PlayerPrefs");
+        PlayerPrefs.DeleteAll();
+        PlayerPrefs.Save();
+        Debug.Log("GameManager: All PlayerPrefs cleared successfully");
+        RestartGame();
+    }
+    
     void OnApplicationFocus(bool hasFocus)
     {
         if (!hasFocus && !isPaused && !isGameOver)

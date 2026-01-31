@@ -16,6 +16,11 @@ public class ScoreManager : MonoBehaviour
     public int CurrentScore => currentScore;
     public int BestScore => bestScore;
     
+    [Header("Record score")]
+    [SerializeField] private GameObject recordModal;
+    [SerializeField] private TextMeshProUGUI newRecordText;
+    
+    
     void Awake()
     {
         // Singleton pattern
@@ -33,6 +38,7 @@ public class ScoreManager : MonoBehaviour
     
     void Start()
     {
+        recordModal.SetActive(false);
         LoadBestScore();
         currentScore = 0; // Всегда начинаем с нуля как при первом запуске
         UpdateScoreDisplay();
@@ -125,6 +131,17 @@ public class ScoreManager : MonoBehaviour
         {
             bestScoreText.text = $"Best: {FormatScore(bestScore)}";
         }
+        
+        newRecordText.text = $"Score: {FormatScore(currentScore)}";
+        
+        if (currentScore > bestScore)
+        {
+            newRecordText.text = $"Best score: {FormatScore(currentScore)}";
+            recordModal.SetActive(true);
+        }
+        
+        
+        
     }
     
     static string FormatScore(int score)
@@ -132,12 +149,12 @@ public class ScoreManager : MonoBehaviour
         if (score < 1000)
             return score.ToString();
         else if (score < 1000000)
-            return $"{score / 1000} K";
+            return $"{score / 1000}K";
         else if (score < 1000000000)
-            return $"{score / 1000000} M";
+            return $"{score / 1000000}M";
         else if (score < 1000000000L)
-            return $"{score / 1000000000} B";
+            return $"{score / 1000000000}B";
         else
-            return $"{score / 1000000000L} T";
+            return $"{score / 1000000000L}T";
     }
 }

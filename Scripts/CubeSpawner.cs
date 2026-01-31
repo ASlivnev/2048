@@ -13,6 +13,9 @@ public class CubeSpawner : MonoBehaviour
     [SerializeField] private float maxXPosition = 3f;
     [SerializeField] private float fallForce = 2f;
 
+    [Header("Destroy On Spawn")]
+    [SerializeField] private GameObject destroyOnSpawnObject;
+
     [Header("Special Cubes")]
     [SerializeField] private int specialCubeInterval = 5;
 
@@ -244,6 +247,13 @@ public class CubeSpawner : MonoBehaviour
         else
         {
             cube.SetValue(nextValue);
+        }
+
+        // Уничтожаем объект после спауна кубика
+        if (destroyOnSpawnObject != null)
+        {
+            Destroy(destroyOnSpawnObject);
+            destroyOnSpawnObject = null;
         }
 
         nextValue = GetRandomValue();
