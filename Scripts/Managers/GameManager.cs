@@ -215,7 +215,70 @@ public class GameManager : MonoBehaviour
     // Публичная функция: Рестарт игры
     public void RestartGame()
     {
-        UnityEngine.SceneManagement.SceneManager.LoadScene(UnityEngine.SceneManagement.SceneManager.GetActiveScene().buildIndex);
+        Debug.Log("GameManager: Restarting game...");
+        
+        // Сбрасываем состояние
+        isGameOver = false;
+        isPaused = false;
+        Time.timeScale = 1f;
+        
+        // Удаляем все кубики
+        DestroyAllCubes();
+        
+        // Очищаем score
+        if (ScoreManager.Instance != null)
+        {
+            ScoreManager.Instance.ResetScore();
+        }
+        
+        // Сбрасываем GameOverManager
+        if (GameOverManager.Instance != null)
+        {
+            GameOverManager.Instance.ResetGameOver();
+        }
+        
+        // Управляем таймером рекламы - останавливаем invoke но НЕ сбрасываем время последней рекламы
+        if (AdManager.Instance != null)
+        {
+            AdManager.Instance.StopAdTimer();
+            AdManager.Instance.ResetAdTimerFully();
+            AdManager.Instance.StartAdTimer();
+        }
+        
+        // Скрываем меню Game Over
+        if (gameOverMenu != null)
+        {
+            gameOverMenu.SetActive(false);
+        }
+        
+        // Скрываем меню паузы
+        if (pauseMenu != null)
+        {
+            pauseMenu.SetActive(false);
+        }
+        
+        Debug.Log("GameManager: Game restarted - all cubes destroyed, score reset, game over cleared");
+    }
+    
+    private void DestroyAllCubes()
+    {
+        // Находим все кубики и уничтожаем их
+        Cube[] allCubes = FindObjectsOfType<Cube>();
+        foreach (Cube cube in allCubes)
+        {
+            if (cube != null)
+            {
+                Destroy(cube.gameObject);
+            }
+        }
+        
+        Debug.Log($"GameManager: Destroyed {allCubes.Length} cubes");
+        
+        // Уведомляем CubeSpawner что все кубики уничтожены
+        if (CubeSpawner.Instance != null)
+        {
+            CubeSpawner.Instance.OnAllCubesDestroyed();
+        }
     }
     
     // Публичная функция: Очистить все PlayerPrefs

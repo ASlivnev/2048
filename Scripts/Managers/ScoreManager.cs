@@ -38,25 +38,36 @@ public class ScoreManager : MonoBehaviour
     
     void Start()
     {
-        recordModal.SetActive(false);
         LoadBestScore();
         currentScore = 0; // Всегда начинаем с нуля как при первом запуске
-        UpdateScoreDisplay();
         
-        Debug.Log($"ScoreManager: Started - Current: {currentScore}, Best: {bestScore}");
+        Debug.Log("ScoreManager: Started - initializing texts");
+        
+        // Ждем LangManager и обновляем тексты
+        Invoke("DelayedUpdateScoreDisplay", 0.3f);
+    }
+    
+    private void DelayedUpdateScoreDisplay()
+    {
+        UpdateScoreDisplay();
     }
     
     void LoadBestScore()
     {
         bestScore = PlayerPrefs.GetInt(BEST_SCORE_KEY, 0);
-        Debug.Log($"ScoreManager: Loaded best score: {bestScore}");
+    }
+    
+    public void ResetScore()
+    {
+        currentScore = 0;
+        UpdateScoreDisplay();
+        Debug.Log("ScoreManager: Score reset to 0");
     }
     
     void SaveBestScore()
     {
         PlayerPrefs.SetInt(BEST_SCORE_KEY, bestScore);
         PlayerPrefs.Save();
-        Debug.Log($"ScoreManager: Saved best score: {bestScore}");
     }
     
     public void AddScore(int points)
@@ -70,7 +81,6 @@ public class ScoreManager : MonoBehaviour
         {
             bestScore = currentScore;
             SaveBestScore();
-            Debug.Log($"ScoreManager: New best score! {bestScore}");
         }
     }
     
@@ -80,7 +90,6 @@ public class ScoreManager : MonoBehaviour
         if (Instance != null)
         {
             Instance.AddScore(cubeValue);
-            Debug.Log($"ScoreManager: Added {cubeValue} points for merging {cubeValue} cube");
         }
     }
     
@@ -88,7 +97,7 @@ public class ScoreManager : MonoBehaviour
     {
         if (Instance != null)
         {
-            int points = cubeValue / 2; // Половина значения кубика
+            int points = cubeValue / 2; 
             
             switch (specialType)
             {
@@ -120,28 +129,63 @@ public class ScoreManager : MonoBehaviour
         }
     }
     
-    void UpdateScoreDisplay()
+    public void UpdateScoreDisplay()
     {
+        // Используем LangManager.Instance вместо FindObjectOfType
+        string scoreLabel = "Score: ";
+        string bestLabel = "Best: ";
+        
+        if (LangManager.Instance != null)
+        {
+            scoreLabel = LangManager.Instance.scoreText;
+            bestLabel = LangManager.Instance.bestScoreText;
+            Debug.Log($"ScoreManager: LangManager found - scoreLabel='{scoreLabel}', bestLabel='{bestLabel}'");
+        }
+        else
+        {
+            Debug.LogWarning("ScoreManager: LangManager.Instance is null!");
+        }
+        
+        Debug.Log($"ScoreManager: Updating texts - currentScore={currentScore}, bestScore={bestScore}");
+        
         if (scoreText != null)
         {
-            scoreText.text = $"Score: {FormatScore(currentScore)}";
+            scoreText.text = $"{scoreLabel}{FormatScore(currentScore)}";
+            Debug.Log($"ScoreManager: Updated scoreText to '{scoreText.text}'");
         }
         
         if (bestScoreText != null)
         {
-            bestScoreText.text = $"Best: {FormatScore(bestScore)}";
+            bestScoreText.text = $"{bestLabel}{FormatScore(bestScore)}";
+            Debug.Log($"ScoreManager: Updated bestScoreText to '{bestScoreText.text}'");
         }
         
-        newRecordText.text = $"Score: {FormatScore(currentScore)}";
+        if (newRecordText != null)
+        {
+            newRecordText.text = $"{scoreLabel}{FormatScore(currentScore)}";
+            Debug.Log($"ScoreManager: Updated newRecordText to '{newRecordText.text}'");
+        }
         
         if (currentScore > bestScore)
         {
-            newRecordText.text = $"Best score: {FormatScore(currentScore)}";
+            // Используем LangManager.Instance для локализации "Best score"
+            string bestScoreLabel = "Best score: ";
+            
+            if (LangManager.Instance != null)
+            {
+                bestScoreLabel = LangManager.Instance.bestScoreText;
+            }
+            
+            newRecordText.text = $"{bestScoreLabel}{FormatScore(currentScore)}";
             recordModal.SetActive(true);
+            Debug.Log($"ScoreManager: New record! Updated to '{newRecordText.text}'");
         }
-        
-        
-        
+        else
+        {
+            // Рекорд НЕ побит - скрываем модальное окно
+            recordModal.SetActive(false);
+            Debug.Log($"ScoreManager: No new record (currentScore={currentScore} <= bestScore={bestScore}) - hiding record modal");
+        }
     }
     
     static string FormatScore(int score)

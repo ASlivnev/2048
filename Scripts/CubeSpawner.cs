@@ -8,7 +8,7 @@ public class CubeSpawner : MonoBehaviour
 
     [Header("Spawn Settings")]
     [SerializeField] private GameObject cubePrefab;
-    [SerializeField] private float spawnYPosition = 4.5f;
+    [SerializeField] private float spawnYPosition = 2.6f;
     [SerializeField] private float minXPosition = -3f;
     [SerializeField] private float maxXPosition = 3f;
     [SerializeField] private float fallForce = 2f;
@@ -24,6 +24,7 @@ public class CubeSpawner : MonoBehaviour
     private GameObject previewCube;
     private SpriteRenderer previewRenderer;
     private float currentX;
+    private float currentY;
 
     private bool isTouching;
     private bool isKeyboardControl;
@@ -49,12 +50,45 @@ public class CubeSpawner : MonoBehaviour
 
     private void Start()
     {
-        mainCamera = Camera.main;
-
-        nextValue = GetRandomValue();
-        currentX = (minXPosition + maxXPosition) * 0.5f;
-
+        currentX = 0f;
+        currentY = 2;
+        // spawnYPosition используется из инспектора (2.6f)
         CreatePreview();
+    }
+
+    // Метод для уведомления об уничтожении всех кубиков
+    public void OnAllCubesDestroyed()
+    {
+        Debug.Log("CubeSpawner: All cubes destroyed, recreating preview");
+        // Пересоздаем превью после уничтожения всех кубиков
+        if (previewCube != null)
+        {
+            Destroy(previewCube);
+            previewCube = null;
+        }
+        
+        // Сбрасываем состояние спауна к начальному
+        ResetSpawnerState();
+        
+        CreatePreview();
+    }
+    
+    private void ResetSpawnerState()
+    {
+        // Сбрасываем все переменные к начальному состоянию
+        currentX = 0f;
+        currentY = 2;
+        // spawnYPosition используется из инспектора (2.6f)
+        spawnCounter = 0;
+        specialCubeIndex = 0;
+        nextValue = 2;
+        MaxCubeValue = 2;
+        
+        // ПРАВИЛЬНОЕ УПРАВЛЕНИЕ - сбрасываем флаги управления
+        isTouching = false;
+        isKeyboardControl = false;
+        
+        Debug.Log("CubeSpawner: Spawner state reset to initial values");
     }
 
     private void Update()
@@ -63,6 +97,12 @@ public class CubeSpawner : MonoBehaviour
         {
             SetPreviewAlpha(0f);
             return;
+        }
+
+        // Проверяем, существует ли превью, если нет - создаем
+        if (previewCube == null)
+        {
+            CreatePreview();
         }
 
         HandlePointerInput();
@@ -76,6 +116,7 @@ public class CubeSpawner : MonoBehaviour
 
     private void HandlePointerInput()
     {
+        // ПРАВИЛЬНОЕ УПРАВЛЕНИЕ - превью двигается при зажатой мыши
         if (Input.GetMouseButtonDown(0))
         {
             isTouching = true;
@@ -84,7 +125,11 @@ public class CubeSpawner : MonoBehaviour
 
         if (Input.GetMouseButtonUp(0))
         {
-            ReleaseCube();
+            if (isTouching)
+            {
+                SpawnCube();
+                isTouching = false;
+            }
         }
 
         if (Input.touchCount > 0)
@@ -98,7 +143,11 @@ public class CubeSpawner : MonoBehaviour
             }
             else if (t.phase == TouchPhase.Ended)
             {
-                ReleaseCube();
+                if (isTouching)
+                {
+                    SpawnCube();
+                    isTouching = false;
+                }
             }
         }
     }
@@ -176,15 +225,33 @@ public class CubeSpawner : MonoBehaviour
         }
         else
         {
+            // Проверяем что nextValue не равно 0
+            if (nextValue <= 0)
+            {
+                nextValue = 2; // Устанавливаем минимальное значение
+                Debug.LogWarning($"CubeSpawner: nextValue was {nextValue}, setting to 2");
+            }
             cube.SetValue(nextValue);
         }
     }
 
     private void UpdatePreviewPosition()
     {
+        // Проверяем, существует ли mainCamera
+        if (mainCamera == null)
+        {
+            mainCamera = Camera.main;
+            if (mainCamera == null)
+            {
+                Debug.LogWarning("CubeSpawner: mainCamera is null, trying to find camera");
+                mainCamera = FindObjectOfType<Camera>();
+            }
+        }
+        
         if (previewCube == null)
             return;
 
+        // ПРАВИЛЬНОЕ УПРАВЛЕНИЕ - двигаем превью только при зажатой мыши
         if (isTouching)
         {
             Vector2 screenPos =
@@ -214,10 +281,8 @@ public class CubeSpawner : MonoBehaviour
 
     private void ReleaseCube()
     {
-        if (!isTouching && !isKeyboardControl) return;
-
-        SpawnCube();
-        isTouching = false;
+        // ПРАВИЛЬНОЕ УПРАВЛЕНИЕ - не используется, спаун напрямую в HandlePointerInput
+        // Метод оставлен для совместимости
     }
 
     private void SpawnCube()
@@ -246,6 +311,12 @@ public class CubeSpawner : MonoBehaviour
         }
         else
         {
+            // Проверяем что nextValue не равно 0
+            if (nextValue <= 0)
+            {
+                nextValue = 2; // Устанавливаем минимальное значение
+                Debug.LogWarning($"CubeSpawner: nextValue was {nextValue}, setting to 2");
+            }
             cube.SetValue(nextValue);
         }
 

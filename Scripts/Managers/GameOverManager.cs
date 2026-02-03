@@ -26,6 +26,23 @@ public class GameOverManager : MonoBehaviour
     
     public static bool IsGameOver => Instance != null ? Instance.isGameOver : false;
     
+    public void ResetGameOver()
+    {
+        isGameOver = false;
+        currentContactTime = 0f;
+        isTouchingBar = false;
+        touchingCubesCount = 0;
+        isVortexActive = false;
+        
+        // Сбрасываем цвет Game Over бара
+        if (gameOverBar != null)
+        {
+            gameOverBar.color = normalColor;
+        }
+        
+        Debug.Log("GameOverManager: Game Over state reset");
+    }
+    
     void Awake()
     {
         // Singleton pattern

@@ -36,30 +36,72 @@ public class AdManager : MonoBehaviour
     void Start()
     {
         Debug.Log("AdManager: Initializing");
-
-        // ИНИЦИАЛИЗАЦИЯ ЯЗЫКА - как в StartGameManager
+        
+        // Подписываемся на событие готовности SDK
+        YG2.onGetSDKData += OnSDKReady;
+        
         InitializeLanguage();
 
         // Subscribe to ad events - ПРАВИЛЬНЫЕ МЕТОДЫ
         YG2.onOpenInterAdv += OnAdOpened;
         YG2.onCloseInterAdv += OnAdClosed;
-        // YG2.onErrorInterAdv += OnAdError; // Убираем - нет такого события
 
-        // Hide countdown text at start
+        if (PlayerPrefs.HasKey("LastInterstitialTime"))
+        {
+            lastInterstitialTime = PlayerPrefs.GetFloat("LastInterstitialTime");
+            Debug.Log($"AdManager: Loaded saved lastInterstitialTime={lastInterstitialTime:F1}");
+        }
+        else
+        {
+            lastInterstitialTime = Time.time;
+            PlayerPrefs.SetFloat("LastInterstitialTime", lastInterstitialTime);
+            PlayerPrefs.Save();
+            Debug.Log($"AdManager: Set new lastInterstitialTime={lastInterstitialTime:F1}");
+        }
+        
+        // ГАРАНТИРОВАННО останавливаем обратный отсчёт при старте
+        isCountdownActive = false;
+        countdownTime = 2f;
+        
+        // АБСОЛЮТНО ГАРАНТИРОВАННО скрываем текст обратного отсчёта
         if (countdownText != null)
         {
             countdownText.gameObject.SetActive(false);
+            Debug.Log("AdManager: countdownText ABSOLUTELY hidden at start");
         }
+        
+        // ДОПОЛНИТЕЛЬНАЯ ПРОВЕРКА - УНИЧТОЖАЕМ ТЕКСТ
+        if (countdownText != null && countdownText.gameObject != null)
+        {
+            countdownText.gameObject.SetActive(false);
+        }
+        
+        Debug.Log($"AdManager: Initialized - lastInterstitialTime={lastInterstitialTime:F1}, countdown stopped");
+        
+        // Запускаем периодическую рекламу
+        InvokeRepeating("CheckInterstitialTimer", 5f, 5f);
+    }
 
-        // Show start ad after 1 second - ВОССТАНАВЛИВАЕМ
-        Invoke("ShowStartAd", 1f);
-
-        // Start timer for periodic ads
-        InvokeRepeating("CheckInterstitialTimer", 1f, 1f);
+    private void OnSDKReady()
+    {
+        Debug.Log("AdManager: SDK data received, showing start ad");
+        
+        // Отписываемся от события
+        YG2.onGetSDKData -= OnSDKReady;
+        
+        // Показываем стартовую рекламу сразу без задержки
+        //ShowStartAdWithoutCountdown();
     }
 
     void Update()
     {
+        // АБСОЛЮТНАЯ БЛОКИРОВКА ОБРАТНОГО ОТСЧЁТА ПРИ РЕСТАРТЕ
+        if (GameManager.Instance != null && GameOverManager.IsGameOver)
+        {
+            // Если Game Over - ничего не делаем
+            return;
+        }
+        
         // Update countdown
         if (isCountdownActive)
         {
@@ -74,13 +116,40 @@ public class AdManager : MonoBehaviour
                 StartAdAfterCountdown();
             }
         }
+        
+        // АБСОЛЮТНАЯ ПРОВЕРКА - если countdownText видим, но отсчёт не активен
+        if (countdownText != null && countdownText.gameObject.activeSelf && !isCountdownActive)
+        {
+            Debug.LogWarning("AdManager: countdownText is visible but countdown is not active - FORCE HIDING");
+            countdownText.gameObject.SetActive(false);
+        }
+        
+        // ДОПОЛНИТЕЛЬНАЯ ПРОВЕРКА - если countdownText видим вообще
+        if (countdownText != null && countdownText.gameObject.activeSelf)
+        {
+            // Проверяем не было ли недавно рестарта (за последние 3 секунды)
+            if (Time.time < 3.0f) // Если игра работает меньше 3 секунд
+            {
+                Debug.LogWarning("AdManager: Game recently restarted - FORCE HIDING countdown text");
+                countdownText.gameObject.SetActive(false);
+                isCountdownActive = false;
+            }
+        }
     }
 
     private void UpdateCountdownText()
     {
         if (countdownText != null)
         {
-            countdownText.text = $"Advertisement in {countdownTime:F1}";
+            // Используем LangManager.Instance
+            if (LangManager.Instance != null)
+            {
+                countdownText.text = $"{LangManager.Instance.advertisementIn}{countdownTime:F1}";
+            }
+            else
+            {
+                countdownText.text = $"Advertisement in {countdownTime:F1}";
+            }
         }
         else
         {
@@ -104,40 +173,81 @@ public class AdManager : MonoBehaviour
         YG2.onCloseInterAdv -= OnAdClosed;
         // YG2.onErrorInterAdv -= OnAdError; // Убираем - нет такого события
         
+        // ОТПИСЫВАЕМСЯ ОТ СОБЫТИЯ ГОТОВНОСТИ SDK
+        YG2.onGetSDKData -= OnSDKReady;
+        
         // УБРАЛИ СОБЫТИЯ ЛОКАЛИЗАЦИИ - используем простой метод
         // YG2.onGetLanguage -= OnGetLanguage; // Не нужно - нет подписки
     }
 
+    // СТАРТОВАЯ РЕКЛАМА БЕЗ ОБРАТНОГО ОТСЧЁТА
+    private void ShowStartAdWithoutCountdown()
+    {
+        Debug.Log("AdManager: Showing start ad WITHOUT countdown");
+        
+        // Просто вызываем рекламу как в рабочем примере
+        YG2.InterstitialAdvShow();
+        isAdShowing = true;
+        
+        // Только блокируем управление, НЕ показываем меню паузы
+        DisableGameControls();
+        
+        Debug.Log("AdManager: Start ad initiated successfully");
+    }
+    
+    // ПЕРИОДИЧЕСКАЯ РЕКЛАМА С ОБРАТНЫМ ОТСЧЁТОМ
     private void ShowStartAd()
     {
         ShowInterstitialAd("Game Start");
     }
 
-    // ИНИЦИАЛИЗАЦИЯ ЯЗЫКА - ПРОСТОЙ МЕТОД
+    // ИНИЦИАЛИЗАЦИЯ ЯЗЫКА - ЧЕРЕЗ YG ПЛАГИН
     private void InitializeLanguage()
     {
-        Debug.Log("[AdManager] Инициализация языка");
+        Debug.Log("[AdManager] Инициализация языка через YG плагин");
         
-        // Простая инициализация языка - используем русский по умолчанию
-        string language = "ru"; // По умолчанию русский
+        // Используем YG2.SwitchLanguage для определения языка
+        string ygLanguage = YG2.lang;
+        Debug.Log($"[AdManager] Язык из YG плагина: {ygLanguage}");
         
-        // Проверяем системный язык (простой способ)
-        if (Application.systemLanguage == SystemLanguage.English)
+        YG2.SwitchLanguage(ygLanguage);
+
+        // Конвертируем язык YG в наш формат
+        string language = "en"; // По умолчанию en
+        
+        if (ygLanguage == "en" || ygLanguage == "en-US" || ygLanguage == "en-GB")
         {
             language = "en";
         }
-        else if (Application.systemLanguage == SystemLanguage.Russian)
+        else if (ygLanguage == "ru" || ygLanguage == "ru-RU")
         {
             language = "ru";
         }
+        else
+        {
+            // Для других языков используем английский по умолчанию
+            language = "en";
+        }
         
-        Debug.Log($"[AdManager] Системный язык: {Application.systemLanguage}, установленный язык: {language}");
+        Debug.Log($"[AdManager] Конвертированный язык: {language}");
         
         // Устанавливаем язык в PlayerPrefs
-        PlayerPrefs.SetString("lang", language);
+        PlayerPrefs.SetString("language", language);
         PlayerPrefs.Save();
         
-        Debug.Log($"[AdManager] Установлен язык: {language}");
+        Debug.Log($"[AdManager] Язык установлен в PlayerPrefs: {language}");
+        
+        // Принудительно обновляем LangManager после установки языка
+        Invoke("UpdateLangManager", 0.1f);
+    }
+    
+    private void UpdateLangManager()
+    {
+        if (LangManager.Instance != null)
+        {
+            LangManager.Instance.InitializeLanguage();
+            Debug.Log("AdManager: LangManager updated after language change");
+        }
     }
 
     private void ShowInterstitialOnGameOver()
@@ -153,12 +263,92 @@ public class AdManager : MonoBehaviour
 
     private void CheckInterstitialTimer()
     {
-        // Check if 2 minutes have passed since the last ad
-        if (Time.time - lastInterstitialTime >= interstitialInterval)
+        // Проверяем корректность lastInterstitialTime после рестарта
+        if (lastInterstitialTime > Time.time)
         {
+            // Time.time был сброшен, корректируем lastInterstitialTime
+            lastInterstitialTime = Time.time;
+            PlayerPrefs.SetFloat("LastInterstitialTime", lastInterstitialTime);
+            PlayerPrefs.Save();
+            Debug.Log($"AdManager: Fixed lastInterstitialTime after restart - new value: {lastInterstitialTime:F1}");
+            return;
+        }
+        
+        // Check if adInterval has passed since the last ad
+        float timePassed = Time.time - lastInterstitialTime;
+        Debug.Log($"AdManager: Timer check - Time.time={Time.time:F1}, lastInterstitialTime={lastInterstitialTime:F1}, timePassed={timePassed:F1}, interval={interstitialInterval}");
+        
+        if (timePassed >= interstitialInterval)
+        {
+            Debug.Log($"AdManager: Timer condition met! {timePassed:F1} >= {interstitialInterval}");
             ShowInterstitialAd("Timer");
             lastInterstitialTime = Time.time;
+            
+            // СОХРАНЯЕМ НОВОЕ ВРЕМЯ
+            PlayerPrefs.SetFloat("LastInterstitialTime", lastInterstitialTime);
+            PlayerPrefs.Save();
+            
+            Debug.Log($"AdManager: Timer ad shown, new lastInterstitialTime={lastInterstitialTime:F1} (SAVED)");
         }
+        else
+        {
+            Debug.Log($"AdManager: Timer not ready yet, need {interstitialInterval - timePassed:F1} more seconds");
+        }
+    }
+
+    public void ResetAdTimer()
+    {
+        // АБСОЛЮТНАЯ БЛОКИРОВКА ОБРАТНОГО ОТСЧЁТА
+        isCountdownActive = false;
+        countdownTime = 2f;
+        
+        // АБСОЛЮТНО СКРЫВАЕМ ТЕКСТ ОБРАТНОГО ОТСЧЁТА
+        if (countdownText != null)
+        {
+            countdownText.gameObject.SetActive(false);
+            Debug.Log("AdManager: countdownText ABSOLUTELY hidden during reset");
+        }
+        
+        // ДОПОЛНИТЕЛЬНОЕ УНИЧТОЖЕНИЕ ТЕКСТА ЕСЛИ ОН ЕСТЬ
+        if (countdownText != null && countdownText.gameObject != null)
+        {
+            countdownText.gameObject.SetActive(false);
+        }
+        
+        Debug.Log("AdManager: ResetAdTimer called - COUNTDOWN ABSOLUTELY STOPPED");
+    }
+    
+    public void ResetAdTimerFully()
+    {
+        // Вызываем обычный сброс
+        ResetAdTimer();
+        
+        // НЕ СБРАСЫВАЕМ ВРЕМЯ ПОСЛЕДНЕЙ РЕКЛАМЫ - таймер должен продолжать работать
+        // lastInterstitialTime = Time.time; // ЗАКОММЕНТИРОВАНО
+        // PlayerPrefs.SetFloat("LastInterstitialTime", lastInterstitialTime); // ЗАКОММЕНТИРОВАНО
+        // PlayerPrefs.Save(); // ЗАКОММЕНТИРОВАНО
+        
+        Debug.Log($"AdManager: ResetAdTimerFully called - lastInterstitialTime KEPT at {lastInterstitialTime:F1}");
+    }
+    
+    public void StopAdTimer()
+    {
+        CancelInvoke("CheckInterstitialTimer");
+        CancelInvoke("ShowGameOverAd"); // ОТМЕНЯЕМ ОТЛОЖЕННЫЙ ВЫЗОВ РЕКЛАМЫ!
+        isCountdownActive = false;
+        isAdShowing = false;
+
+        if (countdownText != null)
+            countdownText.gameObject.SetActive(false);
+
+        Debug.Log("AdManager: Ad timer STOPPED (including ShowGameOverAd invoke)");
+    }
+    
+    public void StartAdTimer()
+    {
+        CancelInvoke("CheckInterstitialTimer");
+        InvokeRepeating("CheckInterstitialTimer", 5f, 5f);
+        Debug.Log("AdManager: Ad timer STARTED");
     }
 
     public void ShowInterstitialAd(string source)
@@ -256,8 +446,13 @@ public class AdManager : MonoBehaviour
     
     private bool IsInterstitialAvailable()
     {
-        // Check ad availability via Yandex Games SDK - ПРОСТАЯ ПРОВЕРКА
-        return true; // Всегда доступно для Yandex Games
+        // Проверяем доступность рекламы через Yandex Games SDK
+        bool isReady = YG2.isTimerAdvCompleted;
+        float timer = YG2.timerInterAdv;
+        
+        Debug.Log($"AdManager: Interstitial availability check - timer completed: {isReady}, timer: {timer:F1}s");
+        
+        return isReady;
     }
 
     public bool IsAdShowing => isAdShowing;
