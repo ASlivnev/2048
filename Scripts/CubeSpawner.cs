@@ -8,10 +8,16 @@ public class CubeSpawner : MonoBehaviour
 
     [Header("Spawn Settings")]
     [SerializeField] private GameObject cubePrefab;
-    [SerializeField] private float spawnYPosition = 2.6f;
-    [SerializeField] private float minXPosition = -3f;
-    [SerializeField] private float maxXPosition = 3f;
+    [SerializeField] private Transform spawnParent;
+    [SerializeField] private float spawnInterval = 1f;
+    [SerializeField] private int previewValue = 2;
+    
+    [Header("Input Settings")]
+    [SerializeField] private RectTransform gameArea; // Игровая зона для кликов
     [SerializeField] private float fallForce = 2f;
+    [SerializeField] private float spawnYPosition = 2.5f;
+    [SerializeField] private float minXPosition = -2.1f;
+    [SerializeField] private float maxXPosition = 2.1f;
 
     [Header("Destroy On Spawn")]
     [SerializeField] private GameObject destroyOnSpawnObject;
@@ -28,10 +34,15 @@ public class CubeSpawner : MonoBehaviour
 
     private bool isTouching;
     private bool isKeyboardControl;
+    private bool isSpawningThisFrame = false;
 
     private int nextValue;
     private int spawnCounter;
     private int specialCubeIndex;
+    
+    // Массив для случайной последовательности спецкубиков
+    private int[] specialCubeSequence;
+    private int currentSpecialIndex = 0;
 
     private int maxCubeValue = 8;
     public int MaxCubeValue { get; private set; } = 2;
@@ -59,7 +70,6 @@ public class CubeSpawner : MonoBehaviour
     // Метод для уведомления об уничтожении всех кубиков
     public void OnAllCubesDestroyed()
     {
-        Debug.Log("CubeSpawner: All cubes destroyed, recreating preview");
         // Пересоздаем превью после уничтожения всех кубиков
         if (previewCube != null)
         {
@@ -73,7 +83,7 @@ public class CubeSpawner : MonoBehaviour
         CreatePreview();
     }
     
-    private void ResetSpawnerState()
+    public void ResetSpawnerState()
     {
         // Сбрасываем все переменные к начальному состоянию
         currentX = 0f;
@@ -88,7 +98,29 @@ public class CubeSpawner : MonoBehaviour
         isTouching = false;
         isKeyboardControl = false;
         
-        Debug.Log("CubeSpawner: Spawner state reset to initial values");
+        // Перемешиваем последовательность спецкубиков
+        ShuffleSpecialCubes();
+        
+    }
+    
+    private void ShuffleSpecialCubes()
+    {
+        // Создаем массив с 7 типами спецкубиков (1-7)
+        specialCubeSequence = new int[7] { 1, 2, 3, 4, 5, 6, 7 };
+        
+        // Перемешиваем массив (Fisher-Yates shuffle)
+        for (int i = specialCubeSequence.Length - 1; i > 0; i--)
+        {
+            int randomIndex = Random.Range(0, i + 1);
+            int temp = specialCubeSequence[i];
+            specialCubeSequence[i] = specialCubeSequence[randomIndex];
+            specialCubeSequence[randomIndex] = temp;
+        }
+        
+        currentSpecialIndex = 0;
+        
+        // Логируем последовательность для отладки
+        string sequenceStr = string.Join(", ", specialCubeSequence);
     }
 
     private void Update()
@@ -108,6 +140,9 @@ public class CubeSpawner : MonoBehaviour
         HandlePointerInput();
         HandleKeyboardInput();
         UpdatePreviewPosition();
+        
+        // Сбрасываем флаг в КОНЦЕ кадра после всех обработок
+        isSpawningThisFrame = false;
     }
 
     #endregion
@@ -116,18 +151,22 @@ public class CubeSpawner : MonoBehaviour
 
     private void HandlePointerInput()
     {
-        // ПРАВИЛЬНОЕ УПРАВЛЕНИЕ - превью двигается при зажатой мыши
+        // Проверяем клик только по игровой зоне
         if (Input.GetMouseButtonDown(0))
         {
-            isTouching = true;
-            isKeyboardControl = false;
+            if (IsPointerOverGameArea())
+            {
+                isTouching = true;
+                isKeyboardControl = false;
+            }
         }
 
         if (Input.GetMouseButtonUp(0))
         {
-            if (isTouching)
+            if (isTouching && !isSpawningThisFrame)
             {
                 SpawnCube();
+                isSpawningThisFrame = true;
                 isTouching = false;
             }
         }
@@ -138,18 +177,52 @@ public class CubeSpawner : MonoBehaviour
 
             if (t.phase == TouchPhase.Began)
             {
-                isTouching = true;
-                isKeyboardControl = false;
+                if (IsTouchOverGameArea(t.position))
+                {
+                    isTouching = true;
+                    isKeyboardControl = false;
+                }
             }
             else if (t.phase == TouchPhase.Ended)
             {
-                if (isTouching)
+                if (isTouching && !isSpawningThisFrame)
                 {
                     SpawnCube();
+                    isSpawningThisFrame = true;
                     isTouching = false;
                 }
             }
         }
+    }
+    
+    private bool IsPointerOverGameArea()
+    {
+        if (gameArea == null) return true; // Если зона не назначена, работаем как раньше
+        
+        Vector2 localPoint;
+        RectTransformUtility.ScreenPointToLocalPointInRectangle(
+            gameArea, 
+            Input.mousePosition, 
+            null, 
+            out localPoint
+        );
+        
+        return gameArea.rect.Contains(localPoint);
+    }
+    
+    private bool IsTouchOverGameArea(Vector2 touchPosition)
+    {
+        if (gameArea == null) return true; // Если зона не назначена, работаем как раньше
+        
+        Vector2 localPoint;
+        RectTransformUtility.ScreenPointToLocalPointInRectangle(
+            gameArea, 
+            touchPosition, 
+            null, 
+            out localPoint
+        );
+        
+        return gameArea.rect.Contains(localPoint);
     }
 
     private void HandleKeyboardInput()
@@ -170,11 +243,12 @@ public class CubeSpawner : MonoBehaviour
         currentX = Mathf.Clamp(currentX, minXPosition, maxXPosition);
 
         // Спаун при нажатии кнопок
-        if (Input.GetKeyDown(KeyCode.DownArrow) ||
+        if ((Input.GetKeyDown(KeyCode.DownArrow) ||
             Input.GetKeyDown(KeyCode.S) ||
-            Input.GetKeyDown(KeyCode.Space))
+            Input.GetKeyDown(KeyCode.Space)) && !isSpawningThisFrame)
         {
             SpawnCube();
+            isSpawningThisFrame = true;
             isKeyboardControl = false;
         }
     }
@@ -195,16 +269,20 @@ public class CubeSpawner : MonoBehaviour
         );
 
         previewRenderer = previewCube.GetComponent<SpriteRenderer>();
-        previewRenderer.sortingOrder = 0; // Спрайт под текстом
+        previewRenderer.sortingOrder = -2; // Куб превью под спрайтом (-1) и текстом (0)
         
         // Настраиваем текст чтобы он был поверх спрайта
         TextMeshPro textMesh = previewCube.GetComponentInChildren<TextMeshPro>();
         if (textMesh != null)
         {
-            textMesh.sortingOrder = 100; // Текст поверх спрайта
+            textMesh.sortingOrder = 0; // Текст поверх спрайта
+            // Отключаем подчеркивание чтобы избежать ошибки с шрифтом
+            textMesh.fontStyle = FontStyles.Normal;
+            // Дополнительно отключаем Rich Text чтобы избежать тегов <u>
+            textMesh.richText = false;
         }
         
-        SetPreviewAlpha(0.7f); // Увеличена прозрачность для лучшей видимости
+        SetPreviewAlpha(0.4f); // Увеличена прозрачность для лучшей видимости
 
         Rigidbody2D rb = previewCube.GetComponent<Rigidbody2D>();
         rb.simulated = false;
@@ -217,11 +295,21 @@ public class CubeSpawner : MonoBehaviour
 
     private void SetupPreviewValue(Cube cube)
     {
-        if (spawnCounter + 1 >= specialCubeInterval)
+        if (spawnCounter >= specialCubeInterval - 1)
         {
-            // Пропускаем None (0) и используем только рабочие спецкубики (1-7)
-            int workingSpecialIndex = specialCubeIndex % 7 + 1; // 1-7 вместо 0-6
-            cube.SetSpecialCube((Cube.SpecialCubeType)workingSpecialIndex);
+            // Используем случайную последовательность спецкубиков
+            if (specialCubeSequence == null || currentSpecialIndex >= specialCubeSequence.Length)
+            {
+                // Если последовательность закончилась, перемешиваем заново
+                ShuffleSpecialCubes();
+            }
+            
+            // Показываем следующий спецкубик
+            int specialType = specialCubeSequence[currentSpecialIndex];
+            cube.SetSpecialCube((Cube.SpecialCubeType)specialType);
+            
+            // Устанавливаем SpecialSprites sorting order = -3 для превью (ниже куба -2)
+            cube.SetSpecialSpritesLayer(-3);
         }
         else
         {
@@ -229,7 +317,6 @@ public class CubeSpawner : MonoBehaviour
             if (nextValue <= 0)
             {
                 nextValue = 2; // Устанавливаем минимальное значение
-                Debug.LogWarning($"CubeSpawner: nextValue was {nextValue}, setting to 2");
             }
             cube.SetValue(nextValue);
         }
@@ -243,7 +330,6 @@ public class CubeSpawner : MonoBehaviour
             mainCamera = Camera.main;
             if (mainCamera == null)
             {
-                Debug.LogWarning("CubeSpawner: mainCamera is null, trying to find camera");
                 mainCamera = FindObjectOfType<Camera>();
             }
         }
@@ -264,7 +350,7 @@ public class CubeSpawner : MonoBehaviour
         }
 
         previewCube.transform.position =
-            new Vector2(currentX, spawnYPosition);
+            new Vector3(currentX, spawnYPosition);
     }
 
     private void SetPreviewAlpha(float a)
@@ -299,15 +385,43 @@ public class CubeSpawner : MonoBehaviour
 
         Cube cube = cubeObj.GetComponent<Cube>();
 
+        // Устанавливаем правильный sorting order чтобы куб был выше превью
+        SpriteRenderer cubeRenderer = cubeObj.GetComponent<SpriteRenderer>();
+        if (cubeRenderer != null)
+        {
+            cubeRenderer.sortingOrder = 1; // Выше превью (0) и текста (-1)
+        }
+        
+        // Устанавливаем sorting order для текста на кубике
+        TextMeshPro[] textMeshes = cubeObj.GetComponentsInChildren<TextMeshPro>();
+        foreach (TextMeshPro textMesh in textMeshes)
+        {
+            if (textMesh != null)
+            {
+                textMesh.sortingOrder = 2; // Текст выше всего остального
+                // Отключаем подчеркивание чтобы избежать ошибки с шрифтом
+                textMesh.fontStyle = FontStyles.Normal;
+                // Дополнительно отключаем Rich Text чтобы избежать тегов <u>
+                textMesh.richText = false;
+            }
+        }
+
         spawnCounter++;
 
         if (spawnCounter >= specialCubeInterval)
         {
             spawnCounter = 0;
-            // Пропускаем None (0) и используем только рабочие спецкубики (1-7)
-            int workingSpecialIndex = specialCubeIndex % 7 + 1; // 1-7 вместо 0-6
-            cube.SetSpecialCube((Cube.SpecialCubeType)workingSpecialIndex);
-            specialCubeIndex = (specialCubeIndex + 1) % 7; // 7 рабочих типов: Plus, Minus, Death, Grow, Shrink, Freeze, Vortex
+            
+            // Используем случайную последовательность спецкубиков
+            if (specialCubeSequence == null || currentSpecialIndex >= specialCubeSequence.Length)
+            {
+                // Если последовательность закончилась, перемешиваем заново
+                ShuffleSpecialCubes();
+            }
+            
+            int specialType = specialCubeSequence[currentSpecialIndex];
+            cube.SetSpecialCube((Cube.SpecialCubeType)specialType);
+            currentSpecialIndex++; // Переходим к следующему спецкубику
         }
         else
         {
@@ -315,9 +429,14 @@ public class CubeSpawner : MonoBehaviour
             if (nextValue <= 0)
             {
                 nextValue = 2; // Устанавливаем минимальное значение
-                Debug.LogWarning($"CubeSpawner: nextValue was {nextValue}, setting to 2");
             }
             cube.SetValue(nextValue);
+        }
+
+        // Проверяем таймер рекламы при спауне
+        if (AdManager.Instance != null && AdManager.Instance.ShouldShowInterstitialOnSpawn())
+        {
+            AdManager.Instance.ShowInterstitialAd("Cube Spawn");
         }
 
         // Уничтожаем объект после спауна кубика

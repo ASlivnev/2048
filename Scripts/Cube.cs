@@ -207,7 +207,6 @@ public class Cube : MonoBehaviour
     void Start()
     {
         HideAllSpecCubesSprites();
-        Debug.Log($"Cube Start: value={value}, isSpecialCube={isSpecialCube}, specialType={specialType}");
         
         // Инициализируем цвета если массив пустой
         if (valueColors == null || valueColors.Length == 0)
@@ -244,7 +243,6 @@ public class Cube : MonoBehaviour
                 new Color(0.88f, 0.48f, 0.70f), // 2097152 — розово-сливовый
             };
             
-            Debug.Log($"Initialized valueColors with {valueColors.Length} colors");
         }
         
         cubeCollider = GetComponent<Collider2D>();
@@ -252,17 +250,14 @@ public class Cube : MonoBehaviour
         textMesh = GetComponentInChildren<TextMeshPro>();
         spriteRenderer = GetComponent<SpriteRenderer>();
         
-        Debug.Log($"Cube.Awake: {gameObject.name} - SpriteRenderer: {spriteRenderer != null}, TextMesh: {textMesh != null}");
         
         // Проверяем обязательные компоненты
         if (spriteRenderer == null)
         {
-            Debug.LogError("Cube: SpriteRenderer component is missing! Please add SpriteRenderer to the cube prefab.");
         }
         
         if (textMesh == null)
         {
-            Debug.LogError("Cube: TextMeshPro component is missing! Please add TextMeshPro to the cube prefab.");
         }
         
         if (textMesh != null)
@@ -396,11 +391,9 @@ public class Cube : MonoBehaviour
         if (spriteRenderer != null)
         {
             spriteRenderer.color = targetColor;
-            Debug.Log($"Cube value: {value}, Final Color: {targetColor}");
         }
         else
         {
-            Debug.Log("UpdateVisual: spriteRenderer is null!");
         }
         
         // Применяем цвет текста
@@ -469,7 +462,6 @@ public class Cube : MonoBehaviour
     {
         if (!isSpecialCube)
         {
-            Debug.LogWarning($"GetSpecialCubeText called on non-special cube! isSpecialCube={isSpecialCube}, specialType={specialType}");
             return "";
         }
         
@@ -490,7 +482,6 @@ public class Cube : MonoBehaviour
             case SpecialCubeType.Vortex:
                 return "";
             default:
-                Debug.LogWarning($"GetSpecialCubeText: Unknown specialType={specialType}");
                 return "";
         }
     }
@@ -518,11 +509,35 @@ public class Cube : MonoBehaviour
         }
     }
     
+    public void SetSpecialSpritesLayer(int layerOrder)
+    {
+        // Устанавливаем sorting order для всех SpecialSprites
+        if (deathCubeSprite != null)
+        {
+            SetSpriteLayer(deathCubeSprite, layerOrder);
+        }
+        if (growCubeSprite != null)
+        {
+            SetSpriteLayer(growCubeSprite, layerOrder);
+        }
+        if (shrinkCubeSprite != null)
+        {
+            SetSpriteLayer(shrinkCubeSprite, layerOrder);
+        }
+        if (freezeCubeSprite != null)
+        {
+            SetSpriteLayer(freezeCubeSprite, layerOrder);
+        }
+        if (vortexCubeSprite != null)
+        {
+            SetSpriteLayer(vortexCubeSprite, layerOrder);
+        }
+    }
+    
     public void SetSpecialCube(SpecialCubeType type)
     {
         isSpecialCube = true;
         specialType = type;
-        Debug.Log($"SetSpecialCube: type={type}, isSpecialCube={isSpecialCube}");
         
         // Обновляем визуалы немедленно
         UpdateSpecialCubeSprites();
@@ -568,7 +583,6 @@ public class Cube : MonoBehaviour
             currentValue *= 2;
             index++;
         }
-        Debug.Log($"GetColorIndex for value {value}: index {index}");
         return index;
     }
     
@@ -657,7 +671,12 @@ public class Cube : MonoBehaviour
                 // Воспроизводим эффект на кубике, с которым взаимодействовали
                 otherCube.PlayMergeEffect();
                 
-                Debug.Log($"Plus cube: {originalValue} -> {otherCube.value}");
+                // Воспроизводим звук объединения x2
+                if (SoundManager.Instance != null)
+                {
+                    SoundManager.Instance.PlayMergeSound();
+                }
+                
                 break;
                 
             case SpecialCubeType.Minus:
@@ -671,8 +690,14 @@ public class Cube : MonoBehaviour
                 if (newValue < 2)
                 {
                     // Если результат меньше 2, уничтожаем кубик с эффектом смерти
-                    Debug.Log($"Minus cube: {originalValue} -> destroyed (too small)");
                     PlayDeathEffect(otherCube);
+                    
+                    // Воспроизводим звук смерти при уничтожении
+                    if (SoundManager.Instance != null)
+                    {
+                        SoundManager.Instance.PlayDeathSound();
+                    }
+                    
                     Destroy(otherCube.gameObject);
                 }
                 else
@@ -680,10 +705,24 @@ public class Cube : MonoBehaviour
                     // Иначе устанавливаем новое значение
                     otherCube.value = newValue;
                     otherCube.UpdateVisual();
-                    Debug.Log($"Minus cube: {originalValue} -> {otherCube.value}");
                     
                     // Воспроизводим эффект на кубике, с которым взаимодействовали
                     otherCube.PlayMergeEffect();
+                    
+                    // Воспроизводим звук объединения x/2
+                    if (SoundManager.Instance != null)
+                    {
+                        if (newValue == 2)
+                        {
+                            // Если результат равен 2, играем звук смерти
+                            SoundManager.Instance.PlayDeathSound();
+                        }
+                        else
+                        {
+                            // Иначе играем обычный звук объединения
+                            SoundManager.Instance.PlayMergeSound();
+                        }
+                    }
                 }
                 break;
                 
@@ -694,8 +733,13 @@ public class Cube : MonoBehaviour
                 // Создаем эффект смерти между кубиками
                 PlayDeathEffect(otherCube);
                 
+                // Воспроизводим звук смерти
+                if (SoundManager.Instance != null)
+                {
+                    SoundManager.Instance.PlayDeathSound();
+                }
+                
                 // Уничтожаем другой кубик
-                Debug.Log($"Death cube destroyed {otherCube.value}");
                 Destroy(otherCube.gameObject);
                 break;
                 
@@ -712,7 +756,13 @@ public class Cube : MonoBehaviour
                 if (newScale.x > maxScale) newScale = Vector3.one * maxScale;
                 
                 otherCube.transform.localScale = newScale;
-                Debug.Log($"Grow cube (<>): scale {currentScale} -> {newScale}");
+                
+                // Воспроизводим звук Grow/Shrink
+                if (SoundManager.Instance != null)
+                {
+                    SoundManager.Instance.PlayGrowShrinkSound();
+                }
+                
                 break;
                 
             case SpecialCubeType.Shrink:
@@ -728,7 +778,6 @@ public class Cube : MonoBehaviour
                 if (newScale.x < minScale)
                 {
                     // Если результат меньше минимума, уничтожаем кубик с эффектом смерти
-                    Debug.Log($"Shrink cube (><): scale {currentScale} -> destroyed (too small)");
                     PlayDeathEffect(otherCube);
                     Destroy(otherCube.gameObject);
                 }
@@ -736,7 +785,13 @@ public class Cube : MonoBehaviour
                 {
                     // Иначе устанавливаем новый размер
                     otherCube.transform.localScale = newScale;
-                    Debug.Log($"Shrink cube (><): scale {currentScale} -> {newScale}");
+                    
+                    // Воспроизводим звук Grow/Shrink
+                    if (SoundManager.Instance != null)
+                    {
+                        SoundManager.Instance.PlayGrowShrinkSound();
+                    }
+                    
                 }
                 break;
                 
@@ -746,6 +801,12 @@ public class Cube : MonoBehaviour
                 
                 // Замораживаем другой кубик
                 FreezeCube(otherCube);
+                
+                // Воспроизводим звук заморозки
+                if (SoundManager.Instance != null)
+                {
+                    SoundManager.Instance.PlayFreezeSound();
+                }
                 break;
                 
             case SpecialCubeType.Vortex:
@@ -754,10 +815,15 @@ public class Cube : MonoBehaviour
                 
                 // Создаем вихрь между кубиками
                 CreateVortexEffect(otherCube);
+                
+                // Воспроизводим звук вихря
+                if (SoundManager.Instance != null)
+                {
+                    SoundManager.Instance.PlayVortexSound();
+                }
                 break;
                 
             default:
-                Debug.LogWarning($"Unknown special cube type: {specialType}");
                 canMerge = true; // Разблокируем если тип неизвестен
                 return;
         }
@@ -796,7 +862,6 @@ public class Cube : MonoBehaviour
         // Включаем зацикленный эффект заморозки
         PlayFreezeEffect(targetCube);
         
-        Debug.Log($"Freeze cube (*): froze cube with value {targetCube.value}");
     }
     
     void CreateVortexEffect(Cube otherCube)
@@ -818,7 +883,6 @@ public class Cube : MonoBehaviour
         // Воспроизводим эффект создания вихря
         PlayMergeEffect();
         
-        Debug.Log($"Vortex cube (~): created vortex at {vortexPosition}");
     }
     
     void UnfreezeCube(Cube targetCube)
@@ -840,7 +904,6 @@ public class Cube : MonoBehaviour
         // Останавливаем эффект заморозки
         StopFreezeEffect(targetCube);
         
-        Debug.Log($"Unfreeze cube: unfroze cube with value {targetCube.value}");
     }
     
     void PlayDeathEffect(Cube otherCube)
@@ -859,7 +922,6 @@ public class Cube : MonoBehaviour
             // Уничтожаем эффект через 1 секунду
             Destroy(deathEffect, 1f);
             
-            Debug.Log($"PlayDeathEffect: created death effect from prefab at {deathPosition}");
         }
         else
         {
@@ -872,11 +934,9 @@ public class Cube : MonoBehaviour
                 // Уничтожаем через 1 секунду
                 Destroy(deathEffect, 1f);
                 
-                Debug.Log($"PlayDeathEffect: created mergeEffect instance at {deathPosition}");
             }
             else
             {
-                Debug.LogWarning("PlayDeathEffect: deathEffectPrefab is null and mergeEffect is also null");
             }
         }
     }
@@ -896,11 +956,9 @@ public class Cube : MonoBehaviour
             // Воспроизводим эффект
             targetCube.mergeEffect.Play();
             
-            Debug.Log($"PlayFreezeEffect: started loop effect with ice color");
         }
         else
         {
-            Debug.LogWarning("PlayFreezeEffect: mergeEffect is null");
         }
     }
     
@@ -915,11 +973,9 @@ public class Cube : MonoBehaviour
             var main = targetCube.mergeEffect.main;
             main.loop = false;
             
-            Debug.Log($"StopFreezeEffect: stopped freeze effect");
         }
         else
         {
-            Debug.LogWarning("StopFreezeEffect: mergeEffect is null");
         }
     }
     
@@ -960,11 +1016,9 @@ public class Cube : MonoBehaviour
             // Воспроизводим эффект
             mergeEffect.Play();
             
-            Debug.Log($"PlayMergeEffect: played with color {cubeColor}");
         }
         else
         {
-            Debug.LogWarning("PlayMergeEffect: mergeEffect is null");
         }
     }
     
@@ -983,6 +1037,12 @@ public class Cube : MonoBehaviour
         
         // Воспроизводим эффект слияния с цветом кубика
         PlayMergeEffect();
+        
+        // Воспроизводим звук объединения
+        if (SoundManager.Instance != null)
+        {
+            SoundManager.Instance.PlayMergeSound();
+        }
         
         // Обновляем максимальное значение в спаунере
         if (CubeSpawner.Instance != null)
@@ -1005,7 +1065,6 @@ public class Cube : MonoBehaviour
         value = newValue;
         isSpecialCube = false;
         specialType = SpecialCubeType.None;
-        Debug.Log($"SetValue: value={newValue}, isSpecialCube={isSpecialCube}");
         
         // Скрываем все спрайты специальных кубов при установке обычного значения
         HideAllSpecCubesSprites();

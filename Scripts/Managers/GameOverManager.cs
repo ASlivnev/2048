@@ -5,24 +5,28 @@ using System;
 
 public class GameOverManager : MonoBehaviour
 {
-    [Header("Game Over Bar")]
-    [SerializeField] private SpriteRenderer gameOverBar;
-    [SerializeField] private Color normalColor = Color.white;
-    [SerializeField] private Color dangerColor = Color.red;
-    [SerializeField] private float dangerTime = 3f;
+    public static GameOverManager Instance { get; private set; }
     
     [Header("Game Over Settings")]
-    [SerializeField] private bool isGameOver = false;
+    public float dangerTime = 3f;
+    public Transform barTransform;
+    public SpriteRenderer gameOverBar;
+    public Color normalColor = Color.white;
+    public Color warningColor = Color.red;
     
-    private float currentContactTime = 0f;
+    [Header("Vortex Settings")]
+    public string vortexCubeTag = "VortexCube";
+    
+    private bool isGameOver = false;
     private bool isTouchingBar = false;
     private int touchingCubesCount = 0;
-    private bool isVortexActive = false; // Флаг активного вихря
+    private float currentContactTime = 0f;
+    private bool isVortexActive = false;
     
-    // Событие Game Over
-    public static event Action OnGameOver;
+    // Сохраняем начальный лучший результат при старте игры
+    private int initialBestScore;
     
-    public static GameOverManager Instance { get; private set; }
+    public event Action OnGameOver;
     
     public static bool IsGameOver => Instance != null ? Instance.isGameOver : false;
     
@@ -40,7 +44,6 @@ public class GameOverManager : MonoBehaviour
             gameOverBar.color = normalColor;
         }
         
-        Debug.Log("GameOverManager: Game Over state reset");
     }
     
     void Awake()
@@ -59,13 +62,15 @@ public class GameOverManager : MonoBehaviour
     
     void Start()
     {
+        // Загружаем начальный лучший результат из PlayerPrefs (но не сохраняем в процессе игры)
+        initialBestScore = PlayerPrefs.GetInt("BestScore2048Cubes", 0);
+        
         // Устанавливаем начальный цвет полосы
         if (gameOverBar != null)
         {
             gameOverBar.color = normalColor;
         }
         
-        Debug.Log("GameOverManager: Initialized");
     }
     
     void Update()
@@ -124,7 +129,7 @@ public class GameOverManager : MonoBehaviour
         
         // Плавно переходим от белого к красному
         float t = currentContactTime / dangerTime;
-        gameOverBar.color = Color.Lerp(normalColor, dangerColor, t);
+        gameOverBar.color = Color.Lerp(normalColor, warningColor, t);
     }
     
     void TriggerGameOver()
@@ -133,7 +138,22 @@ public class GameOverManager : MonoBehaviour
         
         isGameOver = true;
         
-        Debug.Log("GAME OVER!");
+        // Воспроизводим звук в зависимости от рекорда ДО сохранения
+        if (SoundManager.Instance != null && ScoreManager.Instance != null)
+        {
+            int currentScore = ScoreManager.Instance.CurrentScore;
+            
+            if (currentScore > initialBestScore)
+            {
+                // Новый рекорд - играем WOW
+                // SoundManager.Instance.PlayWowSound();
+            }
+            else
+            {
+                // Рекорд не побит - играем FOO
+                // SoundManager.Instance.PlayFooSound();
+            }
+        }
         
         // Вызываем событие Game Over
         OnGameOver?.Invoke();
@@ -145,10 +165,8 @@ public class GameOverManager : MonoBehaviour
         }
         else
         {
-            Debug.LogError("GameOverManager: GameManager instance not found!");
         }
         // Можно добавить дополнительные эффекты
-        Debug.LogWarning("GAME OVER - Кубики касались полосы более 3 секунд!");
     }
     
     // RestartGame убран - GameManager просто перезагружает сцену
@@ -165,7 +183,6 @@ public class GameOverManager : MonoBehaviour
             Instance.isTouchingBar = false;
             Instance.isVortexActive = false;
             
-            Debug.Log("GameOverManager: Force reset - all state cleared");
         }
     }
     
@@ -175,7 +192,6 @@ public class GameOverManager : MonoBehaviour
         touchingCubesCount++;
         isTouchingBar = true;
         
-        Debug.Log($"GameOverManager: Cube entered bar. Total touching: {touchingCubesCount}");
     }
     
     public void OnCubeExitBar()
@@ -187,7 +203,6 @@ public class GameOverManager : MonoBehaviour
             isTouchingBar = false;
         }
         
-        Debug.Log($"GameOverManager: Cube exited bar. Total touching: {touchingCubesCount}");
     }
     
     // Методы для управления состоянием вихря
@@ -200,14 +215,12 @@ public class GameOverManager : MonoBehaviour
         isTouchingBar = false;
         touchingCubesCount = 0;
         
-        Debug.Log("GameOverManager: Vortex activated - hiding bar");
     }
     
     public void OnVortexDeactivated()
     {
         isVortexActive = false;
         
-        Debug.Log("GameOverManager: Vortex deactivated - showing bar");
     }
     
     void OnDrawGizmosSelected()
@@ -215,7 +228,7 @@ public class GameOverManager : MonoBehaviour
         if (gameOverBar != null)
         {
             // Рисуем границы полосы в редакторе
-            Gizmos.color = isGameOver ? dangerColor : normalColor;
+            Gizmos.color = isGameOver ? warningColor : normalColor;
             Gizmos.DrawWireCube(gameOverBar.transform.position, gameOverBar.transform.localScale);
         }
     }

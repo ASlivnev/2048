@@ -16,7 +16,6 @@ public class ScoreUI : MonoBehaviour
         }
         else
         {
-            Debug.LogWarning("ScoreUI: ScoreManager instance not found!");
         }
     }
     

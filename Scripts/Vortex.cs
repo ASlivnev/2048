@@ -203,7 +203,6 @@ public class Vortex : MonoBehaviour
                 visualEffect.SetActive(true);
             }
             
-            Debug.Log("VORTEX ACTIVATED! 🌪️");
         }
     }
     
@@ -230,7 +229,6 @@ public class Vortex : MonoBehaviour
             visualEffect.SetActive(false);
         }
         
-        Debug.Log("VORTEX DEACTIVATED! 🌪️");
     }
     
     void OnDrawGizmosSelected()

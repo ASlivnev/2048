@@ -17,11 +17,9 @@ public class LangManager : MonoBehaviour
         {
             Instance = this;
             DontDestroyOnLoad(gameObject);
-            Debug.Log("LangManager: Created new instance");
         }
         else
         {
-            Debug.Log("LangManager: Destroying duplicate instance");
             Destroy(gameObject);
             return;
         }
@@ -29,7 +27,6 @@ public class LangManager : MonoBehaviour
     
     void Start()
     {
-        // Дополнительная инициализация при перезагрузке сцены
         InitializeLanguage();
     }
     
@@ -44,22 +41,18 @@ public class LangManager : MonoBehaviour
         if (PlayerPrefs.HasKey("language"))
         {
             string lang = PlayerPrefs.GetString("language");
-            Debug.Log($"LangManager: Found language in PlayerPrefs: {lang}");
             
             if (lang == "ru")
             {
                 scoreText = "Счет: ";
                 bestScoreText = "Лучший: ";
                 advertisementIn = "Реклама через ";
-                Debug.Log("LangManager: Set Russian language");
             }
         }
         else
         {
-            Debug.Log("LangManager: No language found in PlayerPrefs, using default English");
         }
         
-        Debug.Log($"LangManager: Initialized - scoreText='{scoreText}', bestScoreText='{bestScoreText}', advertisementIn='{advertisementIn}'");
         
         // Принудительно обновляем все тексты после инициализации
         Invoke("UpdateAllTexts", 0.1f);
@@ -67,52 +60,39 @@ public class LangManager : MonoBehaviour
     
     private void UpdateAllTexts()
     {
-        Debug.Log("LangManager: Updating all texts after language initialization");
         
         // Ждем немного чтобы все менеджеры инициализировались
-        Invoke("DelayedUpdateAllTexts", 0.2f);
+        Invoke("DelayedUpdateAllTexts", 0.1f);
     }
     
     private void DelayedUpdateAllTexts()
     {
-        Debug.Log("LangManager: Delayed update of all texts");
         
         // Обновляем ScoreManager если есть
         if (ScoreManager.Instance != null)
         {
             ScoreManager.Instance.UpdateScoreDisplay();
-            Debug.Log("LangManager: Updated ScoreManager texts");
         }
         else
         {
-            Debug.LogWarning("LangManager: ScoreManager.Instance is null!");
         }
         
         // Обновляем AdManager если есть
         if (AdManager.Instance != null)
         {
             // AdManager обновит текст при следующем вызове UpdateCountdownText
-            Debug.Log("LangManager: AdManager will update texts on next countdown");
         }
         else
         {
-            Debug.LogWarning("LangManager: AdManager.Instance is null!");
         }
         
         // Обновляем GameManager если есть
         if (GameManager.Instance != null)
         {
-            Debug.Log("LangManager: GameManager.Instance found");
         }
         else
         {
-            Debug.LogWarning("LangManager: GameManager.Instance is null!");
         }
     }
-
-    // Update is called once per frame
-    void Update()
-    {
-        
-    }
+    
 }

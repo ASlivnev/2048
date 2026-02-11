@@ -1,14 +1,17 @@
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.UI;
+using YG;
 
 public class GameManager : MonoBehaviour
 {
-    [Header("Pause Menu")]
+    [Header("Menus")]
     [SerializeField] private GameObject pauseMenu;
-    
-    [Header("Game Over Menu")]
     [SerializeField] private GameObject gameOverMenu;
+    
+    [Header("UI Elements")]
+    [SerializeField] private Button muteButton;
     
     private bool isPaused = false;
     private bool isGameOver = false;
@@ -32,36 +35,42 @@ public class GameManager : MonoBehaviour
     
     void Start()
     {
-        Debug.Log("GameManager: Start() called");
+        
+        // Сбрасываем состояние игры при старте
+        isPaused = false;
+        isGameOver = false;
         
         // Гарантируем правильный TimeScale при старте
         Time.timeScale = 1f;
         
-        Debug.Log($"GameManager: Initial state - IsPaused: {isPaused}, IsGameOver: {isGameOver}, TimeScale: {Time.timeScale}");
         
         // Скрываем меню паузы при старте
         if (pauseMenu != null)
         {
             pauseMenu.SetActive(false);
-            Debug.Log("GameManager: Pause menu hidden on start");
         }
         else
         {
-            Debug.LogWarning("GameManager: Pause menu not assigned!");
         }
         
         // Скрываем меню Game Over при старте
         if (gameOverMenu != null)
         {
             gameOverMenu.SetActive(false);
-            Debug.Log("GameManager: Game Over menu hidden on start");
         }
         else
         {
-            Debug.LogWarning("GameManager: Game Over menu not assigned!");
         }
         
-        Debug.Log("GameManager: Start() completed");
+        // Включаем управление при старте
+        EnableGameControls();
+        
+        // Вызываем GameReady API когда игра полностью готова
+        YG2.GameReadyAPI();
+        
+        // Инициализируем цвет кнопки Mute с задержкой
+        StartCoroutine(InitializeMuteButtonDelayed());
+        
     }
     
     void Update()
@@ -79,47 +88,110 @@ public class GameManager : MonoBehaviour
     // Публичная функция для постановки на паузу
     public void PauseGame()
     {
-        if (isPaused || isGameOver) return;
+        
+        if (isPaused) 
+        {
+            return;
+        }
+        
+        if (isGameOver)
+        {
+            return;
+        }
         
         isPaused = true;
-        Time.timeScale = 0f;
         
-        // БЛОКИРУЕМ УПРАВЛЕНИЕ - отключаем спаун и управление
         DisableGameControls();
         
-        // Показываем меню паузы
+        Time.timeScale = 0f;
+        
+        // Отключаем звук во время паузы
+        if (SoundManager.Instance != null)
+        {
+            SoundManager.Instance.SetMasterVolume(0f);
+        }
+        
         if (pauseMenu != null)
         {
             pauseMenu.SetActive(true);
-            Debug.Log("GameManager: Game paused - menu shown, controls disabled");
         }
         else
         {
-            Debug.Log("GameManager: Game paused - no menu to show, controls disabled");
         }
+        
     }
     
     // Публичная функция: Снять с паузы
     public void ResumeGame()
     {
-        if (!isPaused) return;
+        
+        if (isPaused) 
+        {
+        }
+        else 
+        {
+            return;
+        }
+        
+        if (isGameOver)
+        {
+            return;
+        }
         
         isPaused = false;
+        
+        EnableGameControls();
+        
         Time.timeScale = 1f;
         
-        // ВОЗОБНОВЛЯЕМ УПРАВЛЕНИЕ - включаем спаун и управление
-        EnableGameControls();
+        // Включаем звук после паузы
+        if (SoundManager.Instance != null)
+        {
+            SoundManager.Instance.SetMasterVolume(1f);
+        }
         
         // Скрываем меню паузы
         if (pauseMenu != null)
         {
             pauseMenu.SetActive(false);
-            Debug.Log("GameManager: Game resumed - menu hidden, controls enabled");
         }
         else
         {
-            Debug.LogError("GameManager: Pause menu is NULL! Cannot hide pause menu.");
         }
+        
+    }
+    
+    // Специальный метод для возобновления после рекламы (принудительный)
+    public void ForceResumeGame()
+    {
+        
+        if (isGameOver)
+        {
+            return;
+        }
+        
+        // Принудительно сбрасываем состояние паузы
+        isPaused = false;
+        
+        EnableGameControls();
+        
+        Time.timeScale = 1f;
+        
+        // Включаем звук после паузы
+        if (SoundManager.Instance != null)
+        {
+            SoundManager.Instance.SetMasterVolume(1f);
+        }
+        
+        // Скрываем меню паузы
+        if (pauseMenu != null)
+        {
+            pauseMenu.SetActive(false);
+        }
+        else
+        {
+        }
+        
     }
     
     // Публичное свойство для проверки состояния паузы
@@ -128,9 +200,8 @@ public class GameManager : MonoBehaviour
     public bool IsGameOver => isGameOver;
     
     // БЛОКИРОВКА УПРАВЛЕНИЯ ПРИ ПАУЗЕ
-    private void DisableGameControls()
+    public void DisableGameControls()
     {
-        Debug.Log("GameManager: Disabling game controls");
         
         // Отключаем спаунер кубиков
         if (CubeSpawner.Instance != null)
@@ -142,9 +213,9 @@ public class GameManager : MonoBehaviour
         DisableCubeControls();
     }
     
-    private void EnableGameControls()
+    // ВОССТАНОВЛЕНИЕ УПРАВЛЕНИЯ
+    public void EnableGameControls()
     {
-        Debug.Log("GameManager: Enabling game controls");
         
         // Включаем спаунер кубиков
         if (CubeSpawner.Instance != null)
@@ -195,27 +266,22 @@ public class GameManager : MonoBehaviour
         if (pauseMenu != null && pauseMenu.activeInHierarchy)
         {
             pauseMenu.SetActive(false);
-            Debug.Log("GameManager: Pause menu hidden due to Game Over");
         }
         
         // Показываем меню Game Over
         if (gameOverMenu != null)
         {
             gameOverMenu.SetActive(true);
-            Debug.Log("GameManager: Game Over - menu shown");
         }
         else
         {
-            Debug.LogError("GameManager: Game Over menu is NULL! Cannot show Game Over menu.");
         }
         
-        Debug.Log("GAME OVER!");
     }
     
     // Публичная функция: Рестарт игры
     public void RestartGame()
     {
-        Debug.Log("GameManager: Restarting game...");
         
         // Сбрасываем состояние
         isGameOver = false;
@@ -237,13 +303,13 @@ public class GameManager : MonoBehaviour
             GameOverManager.Instance.ResetGameOver();
         }
         
-        // Управляем таймером рекламы - останавливаем invoke но НЕ сбрасываем время последней рекламы
-        if (AdManager.Instance != null)
+        // Сбрасываем спаунер к исходным значениям
+        if (CubeSpawner.Instance != null)
         {
-            AdManager.Instance.StopAdTimer();
-            AdManager.Instance.ResetAdTimerFully();
-            AdManager.Instance.StartAdTimer();
+            CubeSpawner.Instance.ResetSpawnerState();
         }
+        
+        // Таймеры рекламы удалены - больше не нужно управлять ими
         
         // Скрываем меню Game Over
         if (gameOverMenu != null)
@@ -257,7 +323,6 @@ public class GameManager : MonoBehaviour
             pauseMenu.SetActive(false);
         }
         
-        Debug.Log("GameManager: Game restarted - all cubes destroyed, score reset, game over cleared");
     }
     
     private void DestroyAllCubes()
@@ -272,7 +337,6 @@ public class GameManager : MonoBehaviour
             }
         }
         
-        Debug.Log($"GameManager: Destroyed {allCubes.Length} cubes");
         
         // Уведомляем CubeSpawner что все кубики уничтожены
         if (CubeSpawner.Instance != null)
@@ -284,11 +348,78 @@ public class GameManager : MonoBehaviour
     // Публичная функция: Очистить все PlayerPrefs
     public void ClearAllPlayerPrefs()
     {
-        Debug.Log("GameManager: Clearing all PlayerPrefs");
         PlayerPrefs.DeleteAll();
         PlayerPrefs.Save();
-        Debug.Log("GameManager: All PlayerPrefs cleared successfully");
-        RestartGame();
+    }
+    
+    // Публичная функция: Переключить звук
+    public void ToggleSound()
+    {
+        if (SoundManager.Instance != null)
+        {
+            SoundManager.Instance.ToggleMute();
+            
+            // Меняем цвет кнопки в зависимости от состояния
+            if (muteButton != null)
+            {
+                Image buttonImage = muteButton.GetComponent<Image>();
+                if (buttonImage != null)
+                {
+                    if (SoundManager.Instance.IsMuted())
+                    {
+                        // Темный цвет когда выключен
+                        buttonImage.color = new Color(0.7f, 0.7f, 0.7f, 1f);
+                    }
+                    else
+                    {
+                        // Белый цвет когда включен
+                        buttonImage.color = Color.white;
+                    }
+                }
+            }
+        }
+    }
+    
+    IEnumerator InitializeMuteButtonDelayed()
+    {
+        // Ждем пока SoundManager инициализируется
+        int attempts = 0;
+        while (SoundManager.Instance == null && attempts < 10)
+        {
+            yield return new WaitForSeconds(0.1f);
+            attempts++;
+        }
+        
+        // Устанавливаем начальный цвет кнопки (всегда белый - звук включен)
+        if (muteButton != null && SoundManager.Instance != null)
+        {
+            yield return new WaitForSeconds(0.1f);
+            
+            Image buttonImage = muteButton.GetComponent<Image>();
+            if (buttonImage != null)
+            {
+                buttonImage.color = Color.white; // Белый - звук включен
+            }
+        }
+    }
+    
+    void InitializeMuteButtonColor()
+    {
+        if (muteButton != null && SoundManager.Instance != null)
+        {
+            Image buttonImage = muteButton.GetComponent<Image>();
+            if (buttonImage != null)
+            {
+                if (SoundManager.Instance.IsMuted())
+                {
+                    buttonImage.color = new Color(0.7f, 0.7f, 0.7f, 1f); // Светло-серый
+                }
+                else
+                {
+                    buttonImage.color = Color.white; // Белый
+                }
+            }
+        }
     }
     
     void OnApplicationFocus(bool hasFocus)

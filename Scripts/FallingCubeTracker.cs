@@ -52,7 +52,6 @@ public class FallingCubeTracker : MonoBehaviour
                     CubeSpawner.Instance.OnCubeLanded();
                 }
                 
-                Debug.Log("FallingCubeTracker: Cube slowed down after collision");
                 Destroy(this);
                 return;
             }
@@ -75,7 +74,6 @@ public class FallingCubeTracker : MonoBehaviour
                     CubeSpawner.Instance.OnCubeLanded();
                 }
                 
-                Debug.Log("FallingCubeTracker: Cube has landed without collision");
                 Destroy(this);
                 return;
             }
@@ -90,7 +88,6 @@ public class FallingCubeTracker : MonoBehaviour
         if (!hasCollided && isFalling)
         {
             hasCollided = true;
-            Debug.Log("FallingCubeTracker: First collision detected");
         }
     }
 }
